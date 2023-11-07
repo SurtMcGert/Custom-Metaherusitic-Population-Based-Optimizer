@@ -24,7 +24,7 @@ applied to our neural network to optimize the final layer of our network.
 
 ## branches
 
--   master
+-   main
     -   contains the latest version of the fully working project
 -   dev
     -   contains the most recently applied changes, gets merged into main when an acceptable quality is met
