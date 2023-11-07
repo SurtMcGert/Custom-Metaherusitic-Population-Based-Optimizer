@@ -3,7 +3,7 @@
 We are training a neural network on the CIFAR10 dataset in an attempt to develop an optimization algorithm that will be
 applied to our neural network to optimize the final layer of our network.
 
-# Method
+## Method
 
 1. develop a neural network
 2. train said network on the CIFAR10 dataset using a standard approach such as gradient descent
