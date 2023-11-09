@@ -5,12 +5,9 @@ import os
 import numpy as np 
 from PIL import Image as im 
 import tensorflow as tf
-import tensorflow.python.keras.backend as K
 import keras.api._v2.keras as keras
 from keras import layers
 from keras.regularizers import l2
-from keras.layers import Dropout
-from keras.utils import custom_object_scope
 
 # global variables
 DATASET_PATH = 'dataset' # the directory that the dataset files are
