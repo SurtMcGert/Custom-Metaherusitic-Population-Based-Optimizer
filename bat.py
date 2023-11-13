@@ -42,7 +42,11 @@ def batAlgorithm(objective, dimensions, lowerBound, upperBound, epochs, populati
             f[bat] = fmin + (fmax-fmin) * beta
             v[bat] = v[bat] + (x[bat]-x[xbestSorted[0]])*f[bat]
             x[bat] = x[bat] + v[bat]
-            
+
+            #Set newFitness and xnew values for second if statement
+            newFitness = objective(x[bat])
+            xnew = x[bat]
+
             #Select new solution for bat based on one of the best solutions
             if (rand > r[bat]):
                 maxBestLimit = randomSolutionIndexLimit * populationSize
@@ -62,7 +66,7 @@ def batAlgorithm(objective, dimensions, lowerBound, upperBound, epochs, populati
                     A[bat] = Amin
                 
                 #Update pulse rate
-                r[bat] = r0[bat] * (1 - exp(-gamma*t))
+                r[bat] = r0[bat] * (1 - np.exp(-gamma*t))
                 
         #Sort bats based on fitness values
         fitnessValues = np.apply_along_axis(objective, 1, x)
