@@ -18,6 +18,7 @@ def batAlgorithm(objective, dimensions, lowerBound, upperBound, epochs, populati
     t = 0
     #Limit to which can be considered "among the best solutions"
     randomSolutionIndexLimit = 0.1
+    maxBestLimit = randomSolutionIndexLimit * populationSize
     
     #Sort bats based on fitness values
     fitnessValues = np.apply_along_axis(objective, 1, x)
@@ -38,22 +39,23 @@ def batAlgorithm(objective, dimensions, lowerBound, upperBound, epochs, populati
             #Get random beta and rand values
             beta = np.random.rand()
             rand = np.random.rand()
-            #Update frequency, velocity, and position of each bat
+            #Update frequency and velocity of each bat
             f[bat] = fmin + (fmax-fmin) * beta
             v[bat] = v[bat] + (x[bat]-x[xbestSorted[0]])*f[bat]
-            x[bat] = x[bat] + v[bat]
-
-            #Set newFitness and xnew values for second if statement
-            newFitness = objective(x[bat])
-            xnew = x[bat]
+            #Calculate new potential solution but don't store yet
+            xnew = x[bat] + v[bat]
 
             #Select new solution for bat based on one of the best solutions
             if (rand > r[bat]):
-                maxBestLimit = randomSolutionIndexLimit * populationSize
                 randomSolution = np.random.choice(xbestSorted[0:maxBestLimit])
                 xnew = x[randomSolution] + np.random.uniform(-1, 1, size = dimensions)*np.mean(A)
-                newFitness = objective(xnew)
-               
+            
+            #Check if new solution is valid within the bounds
+            xnew = np.clip(xnew, lowerBound, upperBound)
+
+            #Calculate new fitness value for potential solution
+            newFitness = objective(xnew)
+            
             #Accept solution based on loudness
             if (rand < A[bat] and newFitness < bestFitness):
                 #Store new position
@@ -75,7 +77,7 @@ def batAlgorithm(objective, dimensions, lowerBound, upperBound, epochs, populati
         #List of indexes of the bats based on best fitness values
         xbestSorted = np.argsort(fitnessValues)
         #Position of best bat
-        xbest = xbestSorted[0]
+        xbest = x[xbestSorted[0]]
         #Best bat's fitness value
         bestFitness = bestFitnessArray[0]
         
