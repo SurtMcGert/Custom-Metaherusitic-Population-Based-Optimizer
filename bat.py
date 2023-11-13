@@ -47,16 +47,16 @@ def batAlgorithm(objective, dimensions, lowerBound, upperBound, epochs, populati
             if (rand > r[bat]):
                 maxBestLimit = randomSolutionIndexLimit * populationSize
                 randomSolution = np.random.choice(xbestSorted[0:maxBestLimit])
-                xnew = x[randomSolution] + np.random.uniform(-1,1)*np.mean(A)
+                xnew = x[randomSolution] + np.random.uniform(-1, 1, size = dimensions)*np.mean(A)
                 newFitness = objective(xnew)
                
             #Accept solution based on loudness
             if (rand < A[bat] and newFitness < bestFitness):
                 #Store new position
                 x[bat] = xnew
+
                 #Update loudness
                 A[bat] = alpha * A[bat]
-                
                 #If loudness falls below minimum loudness (Amin) set back the loudness to Amin
                 if A[bat] < Amin:
                     A[bat] = Amin
