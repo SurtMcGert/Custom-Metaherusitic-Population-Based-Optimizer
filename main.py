@@ -212,26 +212,6 @@ def evaluateModel(device, model, testDataLoader, testingData, H, plotName):
     plt.savefig(folder+plotName)
 
 
-# function to freeze all but the last layer of a model and re-initialize the final layer
-# input:
-# model - the model to reinitialize
-def reInitializeFinalLayer(model):
-    print("re-initializing model")
-    initModel = model
-
-    # freeze all the layers except the last
-    initModel.trainable = False
-    layer = initModel.layers[-1]
-    layer.trainable = True
-
-    # re-initialize the last layer of the network
-    weights = [layer.kernel, layer.bias]
-    initializers = [layer.kernel_initializer, layer.bias_initializer]
-
-    for w, init in zip(weights, initializers):
-        w.assign(init(w.shape, dtype=w.dtype))
-
-
 # main method
 def main():
     print("getting training and testing data")
@@ -262,10 +242,14 @@ def main():
 
     # train the CNN model
     # cnn, H = trainModel(device, cnn, opt, lossFn, CNN_MODEL_FILE, trainingDataLoader,
-    #                     valDataLoader, EPOCHS, BATCH_SIZE)
+    #                    valDataLoader, EPOCHS, BATCH_SIZE)
+
+    # reset the last layer of the model
+    # cnn.reInitializeFinalLayer()
 
     # save the CNN model to disk
     # saveModel(cnn, H, CNN_MODEL_FILE, CNN_MODEL_TRAIN_HISTORY_FILE)
+    # load the CNN model to disk
     cnn, H = loadModel(CNN_MODEL_FILE, CNN_MODEL_TRAIN_HISTORY_FILE)
 
     # # evaluate the model before using the optimization algorithm

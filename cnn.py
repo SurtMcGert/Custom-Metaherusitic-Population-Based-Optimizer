@@ -9,6 +9,7 @@ from torch import flatten
 
 class CNN(Module):
     def __init__(self, numChannels, classes):
+        self.classes = classes
         # call the parent constructor
         super(CNN, self).__init__()
         # initialize first set of CONV => RELU => POOL layers
@@ -25,7 +26,7 @@ class CNN(Module):
         self.fc1 = Linear(in_features=1800, out_features=500)
         self.relu3 = ReLU()
         # initialize our softmax classifier
-        self.fc2 = Linear(in_features=500, out_features=classes)
+        self.last_layer = Linear(in_features=500, out_features=classes)
         self.logSoftmax = LogSoftmax(dim=1)
 
     def forward(self, x):
@@ -46,7 +47,16 @@ class CNN(Module):
         x = self.relu3(x)
         # pass the output to our softmax classifier to get our output
         # predictions
-        x = self.fc2(x)
+        x = self.last_layer(x)
         output = self.logSoftmax(x)
         # return the output predictions
         return output
+
+    def reInitializeFinalLayer(self):
+        # freeze all layers except the last and reset its parameters
+        self.last_layer = Linear(in_features=500, out_features=self.classes)
+        for name, layer in self.named_parameters():
+            if 'last' in name:
+                layer.requires_grad = True
+            else:
+                layer.requires_grad = False
