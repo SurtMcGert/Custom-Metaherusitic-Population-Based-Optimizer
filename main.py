@@ -149,6 +149,7 @@ def trainModel(device, model, opt, lossFn, filename, trainingDataLoader, valData
 # modelFileName - the file name to save the model into
 # historyFileName - the file name to save the training history into
 def saveModel(model, H, modelFileName, historyFileName):
+    print("saving model: ", modelFileName)
     folder = "models/"
     torch.save(model, folder+modelFileName)
     torch.save(H, folder+historyFileName)
@@ -161,6 +162,7 @@ def saveModel(model, H, modelFileName, historyFileName):
 #
 # returns: the model, and the history
 def loadModel(modelFileName, historyFileName):
+    print("loading model: ", modelFileName)
     folder = "models/"
     model = torch.load(folder+modelFileName)
     H = torch.load(folder+historyFileName)
