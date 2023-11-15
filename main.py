@@ -1,131 +1,213 @@
 # Computational Intelligence Course Work
 # imports
-import pickle
-import os
-import numpy as np 
-from PIL import Image as im 
-import tensorflow as tf
-import keras.api._v2.keras as keras
-from keras import layers
-from keras.regularizers import l2
+import numpy as np
+import torch
+import matplotlib.pyplot as plt
+from torch import nn
+from torch.optim import Adam
+from torchvision.datasets import CIFAR10
+from torchvision.transforms import ToTensor
+from torch.utils.data import DataLoader
+from torch.utils.data import random_split
+from sklearn.metrics import classification_report
+from cnn import CNN
+import matplotlib
+matplotlib.use("Agg")
 
 # global variables
-DATASET_PATH = 'dataset' # the directory that the dataset files are
-IMAGE_DIM = 32 # the dimension of all the images is 32 x 32
-IMAGE_CHANNELS = 3 # each image is RGB so has 3 channels
-NO_OF_CLASSES = 10 # there are 10 classes of images in the dataset
-CNN_MODEL_FILE = "cnnModel.h5" # the name of the file storing the weights of the CNN model
-MODEL_WITH_ALGORITHM_FILE = "cnnWithAlgorithm.h5" # the name of the file storing the weights of the model after using our optimization algorithm
+DATASET_PATH = 'dataset'  # the directory that the dataset files are
+IMAGE_DIM = 32  # the dimension of all the images is 32 x 32
+IMAGE_CHANNELS = 3  # each image is RGB so has 3 channels
+NO_OF_CLASSES = 10  # there are 10 classes of images in the dataset
+# the name of the file storing the weights of the CNN model
+CNN_MODEL_FILE = "cnnModel"
+# the name of the file storing the training history of the CNN
+CNN_MODEL_TRAIN_HISTORY_FILE = "cnnModelHistory"
+# the name of the file storing the weights of the model after using our optimization algorithm
+MODEL_WITH_ALGORITHM_FILE = "cnnWithAlgorithm"
+# the name of the file storing the training history for the model after using our optimization algorithm
+MODEL_WITH_ALGORITHM_TRAIN_HISTORY_FILE = "cnnWithAlgorithmHistory"
+# define training hyperparameters
+BATCH_SIZE = 64
+EPOCHS = 10
+# define the train and val splits
+TRAIN_SPLIT = 0.75
+VAL_SPLIT = 1 - TRAIN_SPLIT
 
-# function to load a data file into a dictionary containing:
-# data -- a 10000x3072 numpy array of uint8s. Each row of the array stores a 32x32 colour image. The first 1024 entries contain the red channel values, the next 1024 the green, and the final 1024 the blue. The image is stored in row-major order, so that the first 32 entries of the array are the red channel values of the first row of the image.
-# labels -- a list of 10000 numbers in the range 0-9. The number at index i indicates the label of the ith image in the array data.
-# inputs:
-# file - path to the file to read
-# 
-# returns the file as a dictionary
-def unpickle(file):
-    with open(file, 'rb') as fo:
-        dict = pickle.load(fo, encoding='bytes')
-    return dict
-
-
-# function to read the dataset
-# inputs:
-# folder - the folder that the dataset files are in
-# 
-# returns two dictionaries (trainingData, testData)
-def readData(folder):
-    print("reading data")
-    files = os.listdir(folder)
-    index = 0
-    trainingData = {}
-    testData = {}
-    # loop over all the files in the folder
-    while index < len(files):
-        filename = files[index]
-        path = folder + "/" + filename
-        # if the file name starts with "data" then it is a training data batch
-        if filename.startswith('data'):
-            print("read ", filename)
-            dic = unpickle(path)
-            for key, value in dic.items():
-                try:
-                    trainingData[key.decode("UTF-8")].append(value)
-                except:
-                    trainingData[key.decode("UTF-8")] = [value]
-
-        # otherwise if it starts with "test" then it is the test data
-        elif filename.startswith('test'):
-            print("read ", filename)
-            dic = unpickle(path)
-            for key, value in dic.items():
-                try:
-                    testData[key.decode("UTF-8")].append(value)
-                except:
-                    testData[key.decode("UTF-8")] = [value]
-        index += 1
-    return trainingData, testData
-
-
-
-# function to save an image for viewing
-# inputs:
-# imageArr - the 3D array of pixel data containing data in row major order
-def saveImage(imageArr):
-    print("saving image")
-    # show the shape of the array 
-    print(imageArr.shape)
-    #create an image object using the array
-    data = im.fromarray(imageArr)
-    # save the output as a PNG file
-    data.save('image.png')
 
 # function to build a CNN
 # inputs:
+# device - the device to train the model on
 # trainingData - the data that will be used to train the model
-# 
-# returns: a CNN model
-def model(trainingData):
+# channels - the number of channels the images have
+#
+# returns: a CNN model, the optimizer and the loss function
+def modelCNN(device, trainingData, channels):
     print("making a CNN")
-    #define a model
-    model = keras.Sequential()
 
-    #add layers to the model
-    initializer = keras.initializers.LecunUniform(seed=0)
-    model.add(keras.layers.Conv2D(32, (3, 3), padding='same', activation='relu', kernel_regularizer=l2(0.00), kernel_initializer=initializer))
-    model.add(keras.layers.MaxPooling2D((2, 2)))
-    model.add(keras.layers.Dropout(0.25))
-    model.add(keras.layers.Conv2D(64, (3, 3), padding='same', activation='relu', kernel_regularizer=l2(0.00), kernel_initializer=initializer))
-    model.add(keras.layers.MaxPooling2D((2, 2)))
-    model.add(keras.layers.Dropout(0.5))
-    model.add(tf.keras.layers.Flatten())
-    model.add(keras.layers.Dense(128, activation='relu', kernel_initializer=initializer))
-    model.add(keras.layers.Dense(NO_OF_CLASSES, activation="softmax", kernel_initializer=initializer))
+    model = CNN(
+        numChannels=channels,
+        classes=len(trainingData.dataset.classes)).to(device)
+    # initialize our optimizer and loss function
+    opt = Adam(model.parameters(), lr=0.001)
+    lossFn = nn.NLLLoss()
+    return model, opt, lossFn
 
-
-    #build the model
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy', tf.keras.metrics.Precision(), tf.keras.metrics.Recall()])
-    shape = np.shape(trainingData)
-    batchSize = shape[0]
-    model.build(input_shape=(batchSize, shape[1], shape[2], shape[3]))
-
-    #get a summery of the model
-    model.summary()
-
-    return model
 
 # function to train a given model and save its weights to a file
 # inputs:
+# device - the device to train the model on
 # model - the model to train
+# opt - the optimization algorithm
+# lossFn - the loss function
 # filename - the name of the file to save the weights in
-# trainingData - the data used to train the model
-# trainingLabels - the labels associated with the training data
-# testData - the data used to test the model
-# testLabels - the labels associated with the test data
-def trainModel(model, filename, trainingData, trainingLabels, testData, testLabels):
-    model.fit(trainingData[:, :, :, :], trainingLabels[:], validation_data=(testData, testLabels), epochs = 20, shuffle = True)
-    model.save_weights(filename)
+# trainingDataLoader - the data loader for the training data
+# valDataLoader - the data loader for the validation data
+# epochs - the number of epochs
+# batchSize - the batch size
+#
+# returns: the trained model and the training history
+def trainModel(device, model, opt, lossFn, filename, trainingDataLoader, valDataLoader, epochs, batchSize):
+    print("training model")
+    # calculate steps per epoch for training and validation set
+    trainSteps = len(trainingDataLoader.dataset) // batchSize
+    valSteps = len(valDataLoader.dataset) // batchSize
+    # initialize a dictionary to store training history
+    H = {
+        "train_loss": [],
+        "train_acc": [],
+        "val_loss": [],
+        "val_acc": []
+    }
+    # loop over our epochs
+    for e in range(0, epochs):
+        # set the model in training mode
+        # initialize the total training and validation loss
+        totalTrainLoss = 0
+        totalValLoss = 0
+        # initialize the number of correct predictions in the training
+        # and validation step
+        trainCorrect = 0
+        valCorrect = 0
+        # loop over the training set
+        for (x, y) in trainingDataLoader:
+            # send the input to the device
+            (x, y) = (x.to(device), y.to(device))
+            # perform a forward pass and calculate the training loss
+            pred = model(x)
+            loss = lossFn(pred, y)
+            # zero out the gradients, perform the backpropagation step,
+            # and update the weights
+            opt.zero_grad()
+            loss.backward()
+            opt.step()
+            # add the loss to the total training loss so far and
+            # calculate the number of correct predictions
+            totalTrainLoss += loss
+            trainCorrect += (pred.argmax(1) == y).type(
+                torch.float).sum().item()
+
+        # switch off autograd for evaluation
+        with torch.no_grad():
+            # set the model in evaluation mode
+            model.eval()
+            # loop over the validation set
+            for (x, y) in valDataLoader:
+                # send the input to the device
+                (x, y) = (x.to(device), y.to(device))
+                # make the predictions and calculate the validation loss
+                pred = model(x)
+                totalValLoss += lossFn(pred, y)
+                # calculate the number of correct predictions
+                valCorrect += (pred.argmax(1) == y).type(
+                    torch.float).sum().item()
+
+        # calculate the average training and validation loss
+        avgTrainLoss = totalTrainLoss / trainSteps
+        avgValLoss = totalValLoss / valSteps
+        # calculate the training and validation accuracy
+        trainCorrect = trainCorrect / len(trainingDataLoader.dataset)
+        valCorrect = valCorrect / len(valDataLoader.dataset)
+        # update our training history
+        H["train_loss"].append(avgTrainLoss.cpu().detach().numpy())
+        H["train_acc"].append(trainCorrect)
+        H["val_loss"].append(avgValLoss.cpu().detach().numpy())
+        H["val_acc"].append(valCorrect)
+        # print the model training and validation information
+        print("[INFO] EPOCH: {}/{}".format(e + 1, EPOCHS))
+        print("Train loss: {:.6f}, Train accuracy: {:.4f}".format(
+            avgTrainLoss, trainCorrect))
+        print("Val loss: {:.6f}, Val accuracy: {:.4f}\n".format(
+            avgValLoss, valCorrect))
+    return model, H
+
+
+# function to save a model and its history
+# inputs:
+# model - the model to save
+# H - the training history for the model
+# modelFileName - the file name to save the model into
+# historyFileName - the file name to save the training history into
+def saveModel(model, H, modelFileName, historyFileName):
+    folder = "models/"
+    torch.save(model, folder+modelFileName)
+    torch.save(H, folder+historyFileName)
+
+
+# function to load a model and its history
+# inputs:
+# modelFileName - the file name to load the model from
+# historyFileName - the file name to load the training history from
+#
+# returns: the model, and the history
+def loadModel(modelFileName, historyFileName):
+    folder = "models/"
+    model = torch.load(folder+modelFileName)
+    H = torch.load(folder+historyFileName)
+    return model, H
+
+
+# function to evaluate a model
+# inputs:
+# device - the device this model was trained on
+# model - the model to evaluate
+# testDataLoader - the data loader for the test data
+# testingData - the testing data
+# H - the training history
+# plotName - the name of the file to save the plot for this evaluation
+def evaluateModel(device, model, testDataLoader, testingData, H, plotName):
+    print("evaluating model...")
+    folder = "evaluations/"
+    # turn off autograd for testing evaluation
+    with torch.no_grad():
+        # set the model in evaluation mode
+        model.eval()
+
+        # initialize a list to store our predictions
+        preds = []
+        # loop over the test set
+        for (x, y) in testDataLoader:
+            # send the input to the device
+            x = x.to(device)
+            # make the predictions and add them to the list
+            pred = model(x)
+            preds.extend(pred.argmax(axis=1).cpu().numpy())
+    # generate a classification report
+    print(classification_report(testingData.targets,
+                                np.array(preds), target_names=testingData.classes))
+
+    # plot the training loss and accuracy
+    plt.style.use("ggplot")
+    plt.figure()
+    plt.plot(H["train_loss"], label="train_loss")
+    plt.plot(H["val_loss"], label="val_loss")
+    plt.plot(H["train_acc"], label="train_acc")
+    plt.plot(H["val_acc"], label="val_acc")
+    plt.title("Training Loss and Accuracy on Dataset")
+    plt.xlabel("Epoch #")
+    plt.ylabel("Loss/Accuracy")
+    plt.legend(loc="lower left")
+    plt.savefig(folder+plotName)
 
 
 # function to freeze all but the last layer of a model and re-initialize the final layer
@@ -139,89 +221,61 @@ def reInitializeFinalLayer(model):
     initModel.trainable = False
     layer = initModel.layers[-1]
     layer.trainable = True
-    
+
     # re-initialize the last layer of the network
     weights = [layer.kernel, layer.bias]
     initializers = [layer.kernel_initializer, layer.bias_initializer]
 
     for w, init in zip(weights, initializers):
         w.assign(init(w.shape, dtype=w.dtype))
-    
-
 
 
 # main method
 def main():
-    # read dataset
-    trainingDic, testDic = readData(DATASET_PATH)
+    print("getting training and testing data")
+    trainingData = CIFAR10(root="dataset", train=True, download=True,
+                           transform=ToTensor())
+    testingData = CIFAR10(root="dataset", train=False, download=True,
+                          transform=ToTensor())
+    # calculate the train/validation split
+    print("generating the train/validation split...")
+    numTrainSamples = int(len(trainingData) * TRAIN_SPLIT)
+    numValSamples = int(len(trainingData) * VAL_SPLIT)
+    (trainingData, valData) = random_split(trainingData,
+                                           [numTrainSamples, numValSamples],
+                                           generator=torch.Generator().manual_seed(42))
 
-    # get the training data and labels
-    trainingData = trainingDic['data']
-    trainingLabels = trainingDic['labels']
-    # get the testing data and labels
-    testData = testDic['data']
-    testLabels = testDic['labels']
+    # initialize the train, validation, and test data loaders
+    print("initializing the data loaders...")
+    trainingDataLoader = DataLoader(trainingData, shuffle=True,
+                                    batch_size=BATCH_SIZE)
+    valDataLoader = DataLoader(valData, batch_size=BATCH_SIZE)
+    testDataLoader = DataLoader(testingData, batch_size=BATCH_SIZE)
 
-    # reshape the data to suitable dimensions for the model
-    print("reshaping data")
-    # reshape training data
-    trainingData = np.transpose(np.reshape(trainingData, (-1, IMAGE_CHANNELS, IMAGE_DIM, IMAGE_DIM)), (0,2,3,1))
-    # reshape the training labels
-    raveled = np.ravel(trainingLabels)
-    trainingLabels = np.zeros(shape=(len(raveled), NO_OF_CLASSES))
-    for i, val in enumerate(raveled):
-        tmp = np.zeros(shape=(NO_OF_CLASSES))
-        tmp[val - 1] = 1
-        trainingLabels[i] = tmp
-    print("training data shape: ", np.shape(trainingData))
-    print("training labels shape: ", np.shape(trainingLabels))
-
-    # reshape the testing data
-    testData = np.transpose(np.reshape(testData, (-1, IMAGE_CHANNELS, IMAGE_DIM, IMAGE_DIM)), (0,2,3,1))
-    # reshape the test labels
-    raveled = np.ravel(testLabels)
-    testLabels = np.zeros(shape=(len(raveled), NO_OF_CLASSES))
-    for i, val in enumerate(raveled):
-        tmp = np.zeros(shape=(NO_OF_CLASSES))
-        tmp[val - 1] = 1
-        testLabels[i] = tmp
-    print("test data shape: ", np.shape(testData))
-    print("test labels shape: ", np.shape(testLabels))
-
-    # save the first image for viewing to make sure the data is read correctly
-    saveImage(trainingData[0])
+    # set the device we will be using to train the model
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # make a convolutional network
-    cnn = model(trainingData)
+    cnn, opt, lossFn = modelCNN(device, trainingData, IMAGE_CHANNELS)
 
-    # train the model
-    # trainModel(cnn, CNN_MODEL_FILE, trainingData, trainingLabels, testData, testLabels)
-    
-    # load the model
-    cnn.load_weights(CNN_MODEL_FILE)
+    # train the CNN model
+    # cnn, H = trainModel(device, cnn, opt, lossFn, CNN_MODEL_FILE, trainingDataLoader,
+    #                     valDataLoader, EPOCHS, BATCH_SIZE)
 
-    print("final layers weights before re-initialization:")
-    print(cnn.layers[-1].get_weights()[0])
+    # save the CNN model to disk
+    # saveModel(cnn, H, CNN_MODEL_FILE, CNN_MODEL_TRAIN_HISTORY_FILE)
+    cnn, H = loadModel(CNN_MODEL_FILE, CNN_MODEL_TRAIN_HISTORY_FILE)
 
-    # re-initialize the model so the final layer is scrambled
-    reInitializeFinalLayer(cnn)
-
-    print("final layers weights after re-initialization:")
-    print(cnn.layers[-1].get_weights()[0])
-
-    # evaluate the model before using the optimization algorithm
+    # # evaluate the model before using the optimization algorithm
     print("=====================================================\nEvaluating model before using optimization algorithm\n=====================================================")
-    score = cnn.evaluate(testData, testLabels, verbose=0)
-    print('Test loss:', score[0])
-    print('Test accuracy:', score[1])
+    evaluateModel(device, cnn, testDataLoader, testingData,
+                  H, "originalCNNEvaluationPlot.png")
 
-    # train the model using the optimization algorithm
+    # # train the model using the optimization algorithm
 
-    # evaluate the model after using the optimization algorithm
+    # # evaluate the model after using the optimization algorithm
     print("=====================================================\nEvaluating model after using optimization algorithm\n=====================================================")
-    score = cnn.evaluate(testData, testLabels, verbose=0)
-    print('Test loss:', score[0])
-    print('Test accuracy:', score[1])
+
 
 # run the main method
 main()

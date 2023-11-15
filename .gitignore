@@ -1,4 +1,6 @@
 dataset/*
 !dataset/.gitkeep
-image.png
-cnnModel.h5
+models/*
+!models/.gitkeep
+evaluations/*
+!evaluations/.gitkeep
