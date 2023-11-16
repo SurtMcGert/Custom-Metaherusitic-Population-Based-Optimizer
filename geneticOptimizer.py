@@ -19,7 +19,10 @@ class GeneticOptimizer(torch.optim.Optimizer):
         for group in self.param_groups:
             for p in group['params']:
                 if p not in self.state:
-                    self.state[p] = dict(mom=torch.zeros_like(p.data))
+                    self.state[p] = {'mom': torch.zeros_like(p)}
                 mom = self.state[p]['mom']
-                mom = self.momentum * mom - group['lr'] * p.grad.data
-                p.data += mom
+                with torch.no_grad():
+                    if p.grad is not None:
+                        new_mom = self.momentum * mom - group['lr'] * p.grad
+                        p.add_(new_mom)  # Update parameter
+                        self.state[p]['mom'] = new_mom  # Update momentum
