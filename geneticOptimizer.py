@@ -17,7 +17,7 @@ class GeneticOptimizer(torch.optim.Optimizer):
         self.lossFn = lossFn  # save the loss function for this optimizer
         self.state = {}  # a dictionary to store the populations
         self.fitness = {}  # a dictionary to store the fitnesses
-        self.numOfBits = 64  # the number of bits for each weight
+        self.numOfBits = 32  # the number of bits for each weight
         # loop over the param groups
         for group in self.param_groups:
             # loop over first the weights then the bias
@@ -128,7 +128,7 @@ class GeneticOptimizer(torch.optim.Optimizer):
         """function to encode a real value x as a graycoded integer"""
         integer = ((x - (-1)) * ((2 ** numOfBits) - 1))/(1 - (-1))
         np.round(integer, 0)
-        integer = integer.astype(int)
+        integer = integer.astype(np.int64)
         grayCoded = self.grayCode(integer)
         return grayCoded
 
