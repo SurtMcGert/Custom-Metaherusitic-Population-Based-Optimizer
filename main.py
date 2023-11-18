@@ -45,7 +45,7 @@ VAL_SPLIT = 1 - TRAIN_SPLIT
 # returns: a CNN model, the optimizer and the loss function
 def modelCNN(device, trainingData, channels):
     print("making a CNN")
-
+    print("device: ", device)
     model = CNN(
         numChannels=channels,
         classes=len(trainingData.dataset.classes)).to(device)
@@ -180,6 +180,7 @@ def loadModel(modelFileName, historyFileName):
 def evaluateModel(device, model, testDataLoader, testingData, H, plotName):
     print("evaluating model...")
     folder = "evaluations/"
+    model = model.to(device)
     # turn off autograd for testing evaluation
     with torch.no_grad():
         # set the model in evaluation mode
@@ -242,7 +243,7 @@ def main():
 
     # train the CNN model
     # cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
-    #                    valDataLoader, EPOCHS, BATCH_SIZE)
+    #                     valDataLoader, EPOCHS, BATCH_SIZE)
 
     # reset the last layer of the model
     # cnn.reInitializeFinalLayer()
@@ -258,9 +259,10 @@ def main():
                   H, "originalCNNEvaluationPlot.png")
 
     # train the model using the genetic optimization algorithm
-    opt = GeneticOptimizer(cnn.parameters(), lr=1e-3, momentum=0.9)
-    cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
-                        valDataLoader, EPOCHS, BATCH_SIZE)
+    opt = GeneticOptimizer(device, cnn, lossFn=lossFn, pop=2)
+    opt.train(trainingDataLoader)
+    # cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
+    #                     valDataLoader, EPOCHS, BATCH_SIZE)
 
     # evaluate the model after using the optimization algorithm
     print("=====================================================\nEvaluating model after using genetic algorithm\n=====================================================")
