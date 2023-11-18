@@ -7,17 +7,20 @@ import numpy as np
 
 class GeneticOptimizer(torch.optim.Optimizer):
     # Init Method:
-    def __init__(self, device, model, lossFn, pop=20):
+    def __init__(self, device, model, lossFn, pop=20, elites=0):
         # TODO - change this to model.last_layer.parameters()
         params = model.last_layer.parameters()
         super(GeneticOptimizer, self).__init__(params, defaults={'pop': pop})
         self.popSize = pop  # save the population size
+        self.elites = elites  # save the number of elites to take to the next population
         self.device = device  # save the device
         self.model = model  # save the model that this optimizer is for
         self.lossFn = lossFn  # save the loss function for this optimizer
         self.state = {}  # a dictionary to store the populations
         self.fitness = {}  # a dictionary to store the fitnesses
         self.numOfBits = 32  # the number of bits for each weight
+        if (elites > pop):
+            raise ("you cant have more elites than in your population")
         # loop over the param groups
         for group in self.param_groups:
             # loop over first the weights then the bias
@@ -32,11 +35,11 @@ class GeneticOptimizer(torch.optim.Optimizer):
     # Step Method
     def train(self, trainingDataLoader):
         self.model = self.model.to(self.device)
-        self.model.eval()
-        for (x, y) in trainingDataLoader:
-            (x, y) = (x.to(self.device), y.to(self.device))
-            for group in self.param_groups:
-                for index, p in enumerate(group['params']):
+        for group in self.param_groups:
+            for index, p in enumerate(group['params']):
+                print("param: ", index)
+                for (x, y) in trainingDataLoader:
+                    (x, y) = (x.to(self.device), y.to(self.device))
                     # a dictionary to hold the binary array for each individual, ready for crossover and mutation
                     binaryArrays = {}
                     if p not in self.state:
@@ -48,10 +51,14 @@ class GeneticOptimizer(torch.optim.Optimizer):
 
                     currentFitness = list()
                     # loop over all of the individuals in the population
+                    print(
+                        "getting fitness---------------------------------------------------------------")
                     for individual in self.state[p]:
+                        print("individual: ", individual)
                         # decode the individual
                         decoded = self.decodeIndividual(
                             (self.state[p])[individual], numOfBits=self.numOfBits)
+                        print("decoded: ", decoded)
                         # now assign these weights to the last layer
                         with torch.no_grad():
                             count = 0
@@ -59,15 +66,15 @@ class GeneticOptimizer(torch.optim.Optimizer):
                                 if (count == index):
                                     param.copy_(nn.Parameter(decoded))
                                     break
-
+                                count += 1
                         # calculate the individuals fitness
                         # set the model in evaluation mode
                         self.model.eval()
                         y_pred = self.model(x)
                         loss = self.lossFn(
                             y_pred, y)
-                        # loss = loss.cpu().data.numpy().argmax()
                         loss = loss.cpu().detach().item()
+                        print("loss: ", loss)
                         if loss == 0:
                             loss = 0.000001
                         currentFitness.append(loss)
@@ -80,30 +87,44 @@ class GeneticOptimizer(torch.optim.Optimizer):
                     # now we have the fitness of each individual, we can perform crossover and mutate
                     # calculate the fitness proportionate
                     fitnessProportionates = self.calculateFitnessProprtionate(
-                        currentFitness)
+                        np.copy(currentFitness))
                     newBinaryArrays = {}
+                    print(
+                        "mating---------------------------------------------------------------")
+                    print("losses: ", currentFitness)
+                    best = np.argpartition(currentFitness, self.elites)[
+                        :self.elites]
+                    print("best: ", best)
                     for individual, binary in enumerate(binaryArrays):
-                        choices = np.arange(self.popSize)
-                        choices = np.delete(choices, individual)
-                        proportions = np.delete(
-                            fitnessProportionates, individual)
-                        # get the parents
-                        p1 = individual
-                        p2 = random.choices(choices, proportions)[0]
-                        # perform one point crossover
-                        offspring = self.onePointCrossover(
-                            binaryArrays[p1], binaryArrays[p2])
-                        newBinaryArrays[p1] = offspring
-                        # now we can mutate this new offspring
-                        probability = 1 / len(newBinaryArrays[p1])
-                        newBinaryArrays[p1] = self.mutate(
-                            newBinaryArrays[p1], probability)
+                        print("individual: ", individual)
+                        print("chance of being picked: ",
+                              fitnessProportionates[individual])
+                        if individual in best:
+                            offspring = binaryArrays[individual]
+                        else:
+                            choices = np.arange(self.popSize)
+                            choices = np.delete(choices, individual)
+                            proportions = np.delete(
+                                fitnessProportionates, individual)
+                            # get the parents
+                            p1 = individual
+                            p2 = random.choices(choices, proportions)[0]
+                            print("partner: ", p2)
+                            # perform one point crossover
+                            offspring = self.onePointCrossover(
+                                binaryArrays[p1], binaryArrays[p2])
+                            # now we can mutate this new offspring
+                            probability = 1 / len(offspring)
+                            offspring = self.mutate(
+                                offspring, probability)
+                        newBinaryArrays[individual] = offspring
 
                     # now we can convert the binary arrays back into weights, then encode them and set them as the new population
                     for child, binary in enumerate(newBinaryArrays):
                         tmp = self.binaryArrayToIndividual(newBinaryArrays[child], np.shape(
                             (self.state[p])[child]), numOfBits=self.numOfBits)
-                        tmp = self.grayCode(tmp)
+                        if child not in best:
+                            tmp = self.grayCode(tmp)
                         (self.state[p])[child] = tmp
 
     def grayCode(self, n):
