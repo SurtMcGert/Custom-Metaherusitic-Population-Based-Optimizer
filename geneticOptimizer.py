@@ -65,7 +65,9 @@ class GeneticOptimizer(torch.optim.Optimizer):
                         self.model.eval()
                         y_pred = self.model(x)
                         loss = self.lossFn(
-                            y_pred, y).cpu().data.numpy().argmax()
+                            y_pred, y)
+                        # loss = loss.cpu().data.numpy().argmax()
+                        loss = loss.cpu().detach().item()
                         if loss == 0:
                             loss = 0.000001
                         currentFitness.append(loss)
