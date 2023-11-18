@@ -17,7 +17,7 @@ class GeneticOptimizer(torch.optim.Optimizer):
         self.lossFn = lossFn  # save the loss function for this optimizer
         self.state = {}  # a dictionary to store the populations
         self.fitness = {}  # a dictionary to store the fitnesses
-        self.numOfBits = 4  # the number of bits for each weight
+        self.numOfBits = 64  # the number of bits for each weight
         # loop over the param groups
         for group in self.param_groups:
             # loop over first the weights then the bias
@@ -52,7 +52,6 @@ class GeneticOptimizer(torch.optim.Optimizer):
                         # decode the individual
                         decoded = self.decodeIndividual(
                             (self.state[p])[individual], numOfBits=self.numOfBits)
-
                         # now assign these weights to the last layer
                         with torch.no_grad():
                             count = 0
@@ -62,6 +61,8 @@ class GeneticOptimizer(torch.optim.Optimizer):
                                     break
 
                         # calculate the individuals fitness
+                        # set the model in evaluation mode
+                        self.model.eval()
                         y_pred = self.model(x)
                         loss = self.lossFn(
                             y_pred, y).cpu().data.numpy().argmax()
@@ -112,20 +113,19 @@ class GeneticOptimizer(torch.optim.Optimizer):
     def encodeIndividual(self, i, numOfBits=4):
         """function to encode an individual with graycoding"""
         numpyArr = i.detach().cpu().numpy()
-        numpyArr = np.array(list(map(self.encodeRealValue, numpyArr)))
+        numpyArr = self.encodeRealValue(numpyArr, numOfBits=numOfBits)
         indiv = torch.tensor(numpyArr)
         return indiv
 
     def decodeIndividual(self, i, numOfBits=4):
         """function to decode an individual back into weights"""
         numpyArr = i.detach().cpu().numpy()
-        numpyArr = np.array(list(map(self.decodeRealValue, numpyArr)))
+        numpyArr = self.decodeRealValue(numpyArr, numOfBits=numOfBits)
         indiv = torch.tensor(numpyArr)
         return indiv
 
     def encodeRealValue(self, x, numOfBits=4):
         """function to encode a real value x as a graycoded integer"""
-        numOfBits = 4
         integer = ((x - (-1)) * ((2 ** numOfBits) - 1))/(1 - (-1))
         np.round(integer, 0)
         integer = integer.astype(int)
