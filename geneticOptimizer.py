@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import random
 import numpy as np
+import threading
 
 
 class GeneticOptimizer(torch.optim.Optimizer):
@@ -40,26 +41,22 @@ class GeneticOptimizer(torch.optim.Optimizer):
             for index, p in enumerate(group['params']):
                 # a dictionary to hold the binary array for each individual, ready for crossover and mutation
                 binaryArrays = {}
-                currentFitness = list()
+                currentFitness = np.zeros(self.popSize)
                 # decode the individuals
                 decoded = self.decodeIndividuals(
                     np.copy(self.state[p]), numOfBits=self.numOfBits)
+
+                threads = list()  # create a list for storing threads
+                # Create a lock object
+                lock = threading.Lock()
                 # loop over all of the individuals in the population
                 for individual, weights in enumerate(decoded):
-                    # now assign these weights to the last layer
-                    self.setWeights(index, weights)
-                    # calculate the individuals fitness
-                    # set the model in evaluation mode
-                    self.model.eval()
-                    x = self.model.input
-                    y = self.model.y
-                    y_pred = self.model(x)
-                    loss = self.lossFn(y_pred, y)
-                    loss = loss.cpu().detach().item()
-                    if loss == 0:
-                        loss = 0.000001
-                    currentFitness.append(loss)
-
+                    t = threading.Thread(target=self.calculateFitness, args=(
+                        individual, index, weights, currentFitness, lock))
+                    threads.append(t)
+                    t.start()
+                for t in threads:
+                    t.join()
                 # convert the individual to a binary array
                 binaryArrays = self.individualsToBinaryArrays(
                     np.copy(self.state[p]), numOfBits=self.numOfBits)
@@ -71,26 +68,18 @@ class GeneticOptimizer(torch.optim.Optimizer):
                 newBinaryArrays = {}
                 best = np.argpartition(currentFitness, self.elites)[
                     :self.elites]
-                for individual, binary in enumerate(binaryArrays):
 
-                    if individual in best:
-                        offspring = binaryArrays[individual]
-                    else:
-                        choices = np.arange(self.popSize)
-                        choices = np.delete(choices, individual)
-                        proportions = np.delete(
-                            fitnessProportionates, individual)
-                        # get the parents
-                        p1 = individual
-                        p2 = random.choices(choices, proportions)[0]
-                        # perform one point crossover
-                        offspring = self.onePointCrossover(
-                            binaryArrays[p1], binaryArrays[p2])
-                        # now we can mutate this new offspring
-                        probability = 1 / len(offspring)
-                        offspring = self.mutate(
-                            offspring, probability)
-                    newBinaryArrays[individual] = offspring
+                threads = list()  # create a list for storing threads
+                # for each individual, replace it with an offspring
+                for individual, binary in enumerate(binaryArrays):
+                    t = threading.Thread(target=self.generateOffspring, args=(
+                        individual, best, binary, binaryArrays, fitnessProportionates, newBinaryArrays))
+                    threads.append(t)
+                    t.start()
+
+                # wait for the threads to finish
+                for t in threads:
+                    t.join()
 
                 # now we can convert the binary arrays back into weights, then encode them and set them as the new population
                 self.state[p] = self.binaryArraysToIndividuals(
@@ -98,6 +87,45 @@ class GeneticOptimizer(torch.optim.Optimizer):
 
                 # set the weights to that of the best offspring
                 self.setWeights(index, decoded[best[0]])
+
+    def generateOffspring(self, individual, best, binary, binaryArrays, fitnessProportionates, newBinaryArrays):
+        """function to generate an offspring for an individual"""
+        if individual in best:
+            offspring = binary
+        else:
+            choices = np.arange(self.popSize)
+            choices = np.delete(choices, individual)
+            proportions = np.delete(fitnessProportionates, individual)
+            # get the parents
+            p1 = individual
+            p2 = random.choices(choices, proportions)[0]
+            # perform one point crossover
+            offspring = self.onePointCrossover(
+                binaryArrays[p1], binaryArrays[p2])
+            # now we can mutate this new offspring
+            probability = 1 / len(offspring)
+            offspring = self.mutate(offspring, probability)
+        newBinaryArrays[individual] = offspring
+
+    def calculateFitness(self, individual, index, weights, currentFitness, lock):
+        """function to calculate the fitness of an individual for the given index parameter (weights or biases) then save the loss in currentFitness"""
+        # assign these weights to the last layer
+        # Acquire the lock before entering the atomic section
+        lock.acquire()
+        self.setWeights(index, weights)
+        # calculate the individuals fitness
+        # set the model in evaluation mode
+        self.model.eval()
+        x = self.model.input
+        y = self.model.y
+        y_pred = self.model(x)
+        # Release the lock when exiting the atomic section
+        lock.release()
+        loss = self.lossFn(y_pred, y)
+        loss = loss.cpu().detach().item()
+        if loss == 0:
+            loss = 0.000001
+        currentFitness[individual] = loss
 
     def setWeights(self, index, weights):
         """function to set the weights for the given indexed parameter"""
