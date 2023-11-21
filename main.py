@@ -12,6 +12,7 @@ from torch.utils.data import random_split
 from sklearn.metrics import classification_report
 from cnn import CNN
 from geneticOptimizer import GeneticOptimizer
+from gwo import GreyWolfOptimizer
 import matplotlib
 matplotlib.use("Agg")
 
@@ -242,14 +243,14 @@ def main():
     cnn, opt, lossFn = modelCNN(device, trainingData, IMAGE_CHANNELS)
 
     # train the CNN model
-    # cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
-    #                     valDataLoader, EPOCHS, BATCH_SIZE)
+    cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
+                         valDataLoader, EPOCHS, BATCH_SIZE)
 
     # reset the last layer of the model
-    # cnn.reInitializeFinalLayer()
+    cnn.reInitializeFinalLayer()
 
     # save the CNN model to disk
-    # saveModel(cnn, H, CNN_MODEL_FILE, CNN_MODEL_TRAIN_HISTORY_FILE)
+    saveModel(cnn, H, CNN_MODEL_FILE, CNN_MODEL_TRAIN_HISTORY_FILE)
     # load the CNN model from disk
     cnn, H = loadModel(CNN_MODEL_FILE, CNN_MODEL_TRAIN_HISTORY_FILE)
 
@@ -269,6 +270,13 @@ def main():
     evaluateModel(device, cnn, testDataLoader, testingData,
                   H, "geneticAlgorithmEvaluationPlot.png")
 
+    # train the model using the grey wolf optimization algorithm
+    opt = GreyWolfOptmizer(device, cnn)
+    opt.train(trainingDataLoader)
+    
+    print("=====================================================\nEvaluating model after using grey wolf optimizer\n=====================================================")
+    evaluateModel(device, cnn, testDataLoader, testingData,
+                  H, "greyWolfEvaluationPlot.png")
 
 # run the main method
 main()
