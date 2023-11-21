@@ -1,2 +1,8 @@
 dataset/*
 !dataset/.gitkeep
+models/*
+!models/.gitkeep
+evaluations/*
+!evaluations/.gitkeep
+test.py
+testMethods.py
