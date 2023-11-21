@@ -9,6 +9,9 @@ from torch import flatten
 
 class CNN(Module):
     def __init__(self, numChannels, classes):
+        super().__init__()
+        self.input = None
+        self.y = None
         self.classes = classes
         # call the parent constructor
         super(CNN, self).__init__()
@@ -30,6 +33,7 @@ class CNN(Module):
         self.logSoftmax = LogSoftmax(dim=1)
 
     def forward(self, x):
+        self.input = x
         # pass the input through our first set of CONV => RELU =>
         # POOL layers
         x = self.conv1(x)

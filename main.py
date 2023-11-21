@@ -32,7 +32,7 @@ MODEL_WITH_ALGORITHM_FILE = "cnnWithAlgorithm"
 MODEL_WITH_ALGORITHM_TRAIN_HISTORY_FILE = "cnnWithAlgorithmHistory"
 # define training hyperparameters
 BATCH_SIZE = 64
-EPOCHS = 10
+EPOCHS = 2
 # define the train and val splits
 TRAIN_SPLIT = 0.75
 VAL_SPLIT = 1 - TRAIN_SPLIT
@@ -98,6 +98,7 @@ def trainModel(device, model, opt, lossFn, trainingDataLoader, valDataLoader, ep
             # perform a forward pass and calculate the training loss
             pred = model(x)
             loss = lossFn(pred, y)
+            model.y = y
             # zero out the gradients, perform the backpropagation step,
             # and update the weights
             opt.zero_grad()
@@ -263,11 +264,10 @@ def main():
     # train the model using the genetic optimization algorithm
     opt = GeneticOptimizer(device, cnn, lossFn=lossFn, pop=2, elites=1)
     start = time.time()
-    opt.train(trainingDataLoader)
+    cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
+                        valDataLoader, EPOCHS, BATCH_SIZE)
     end = time.time()
     print("elapsed time: ", (end - start)/60)
-    # cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
-    #                     valDataLoader, EPOCHS, BATCH_SIZE)
 
     # evaluate the model after using the optimization algorithm
     print("=====================================================\nEvaluating model after using genetic algorithm\n=====================================================")

@@ -7,7 +7,7 @@ import numpy as np
 
 class GeneticOptimizer(torch.optim.Optimizer):
     # Init Method:
-    def __init__(self, device, model, lossFn, pop=20, elites=0):
+    def __init__(self, device, model, lossFn, pop=20, elites=1):
         # TODO - change this to model.last_layer.parameters()
         params = model.last_layer.parameters()
         super(GeneticOptimizer, self).__init__(params, defaults={'pop': pop})
@@ -25,89 +25,90 @@ class GeneticOptimizer(torch.optim.Optimizer):
         for group in self.param_groups:
             # loop over first the weights then the bias
             for p in group['params']:
-                dict = {}
+                arr = list()
                 for i in range(pop):
                     # add the gray coded weights/biases to a dictionary
-                    dict[i] = self.encodeIndividual(
-                        torch.rand_like(p.data), numOfBits=self.numOfBits)
-                self.state[p] = dict
+                    arr.append(self.encodeIndividual(
+                        torch.rand_like(p.data), numOfBits=self.numOfBits))
+                self.state[p] = arr
 
     # Step Method
-    def train(self, trainingDataLoader):
+    def step(self):
         self.model = self.model.to(self.device)
+        self.lossFn = self.lossFn.to(self.device)
         for group in self.param_groups:
             for index, p in enumerate(group['params']):
-                for (x, y) in trainingDataLoader:
-                    (x, y) = (x.to(self.device), y.to(self.device))
-                    # a dictionary to hold the binary array for each individual, ready for crossover and mutation
-                    binaryArrays = {}
-                    if p not in self.state:
-                        dict = {}
-                        for i in range(self.popSize):
-                            dict[i] = self.encodeIndividual(
-                                torch.rand_like(p.data), numOfBits=self.numOfBits)
-                            self.state[p] = dict
+                # a dictionary to hold the binary array for each individual, ready for crossover and mutation
+                binaryArrays = {}
+                currentFitness = list()
+                # decode the individuals
+                decoded = self.decodeIndividuals(
+                    np.copy(self.state[p]), numOfBits=self.numOfBits)
+                # loop over all of the individuals in the population
+                for individual, weights in enumerate(decoded):
+                    # now assign these weights to the last layer
+                    self.setWeights(index, weights)
+                    # calculate the individuals fitness
+                    # set the model in evaluation mode
+                    self.model.eval()
+                    x = self.model.input
+                    y = self.model.y
+                    y_pred = self.model(x)
+                    loss = self.lossFn(
+                        y_pred, y)
+                    loss = loss.cpu().detach().item()
+                    if loss == 0:
+                        loss = 0.000001
+                    currentFitness.append(loss)
 
-                    currentFitness = list()
-                    # loop over all of the individuals in the population
-                    for individual in self.state[p]:
-                        # decode the individual
-                        decoded = self.decodeIndividual(
-                            (self.state[p])[individual], numOfBits=self.numOfBits)
-                        # now assign these weights to the last layer
-                        with torch.no_grad():
-                            count = 0
-                            for param in self.model.last_layer.parameters():
-                                if (count == index):
-                                    param.copy_(nn.Parameter(decoded))
-                                    break
-                                count += 1
-                        # calculate the individuals fitness
-                        # set the model in evaluation mode
-                        self.model.eval()
-                        y_pred = self.model(x)
-                        loss = self.lossFn(
-                            y_pred, y)
-                        loss = loss.cpu().detach().item()
-                        if loss == 0:
-                            loss = 0.000001
-                        currentFitness.append(loss)
+                # convert the individual to a binary array
+                binaryArrays = self.individualsToBinaryArrays(
+                    np.copy(self.state[p]), numOfBits=self.numOfBits)
 
-                    # convert the individual to a binary array
-                    binaryArrays = self.individualsToBinaryArrays(
-                        self.state[p], numOfBits=self.numOfBits)
+                # now we have the fitness of each individual, we can perform crossover and mutate
+                # calculate the fitness proportionate
+                fitnessProportionates = self.calculateFitnessProprtionate(
+                    np.copy(currentFitness))
+                newBinaryArrays = {}
+                best = np.argpartition(currentFitness, self.elites)[
+                    :self.elites]
+                for individual, binary in enumerate(binaryArrays):
 
-                    # now we have the fitness of each individual, we can perform crossover and mutate
-                    # calculate the fitness proportionate
-                    fitnessProportionates = self.calculateFitnessProprtionate(
-                        np.copy(currentFitness))
-                    newBinaryArrays = {}
-                    best = np.argpartition(currentFitness, self.elites)[
-                        :self.elites]
-                    for individual, binary in enumerate(binaryArrays):
+                    if individual in best:
+                        offspring = binaryArrays[individual]
+                    else:
+                        choices = np.arange(self.popSize)
+                        choices = np.delete(choices, individual)
+                        proportions = np.delete(
+                            fitnessProportionates, individual)
+                        # get the parents
+                        p1 = individual
+                        p2 = random.choices(choices, proportions)[0]
+                        # perform one point crossover
+                        offspring = self.onePointCrossover(
+                            binaryArrays[p1], binaryArrays[p2])
+                        # now we can mutate this new offspring
+                        probability = 1 / len(offspring)
+                        offspring = self.mutate(
+                            offspring, probability)
+                    newBinaryArrays[individual] = offspring
 
-                        if individual in best:
-                            offspring = binaryArrays[individual]
-                        else:
-                            choices = np.arange(self.popSize)
-                            choices = np.delete(choices, individual)
-                            proportions = np.delete(
-                                fitnessProportionates, individual)
-                            # get the parents
-                            p1 = individual
-                            p2 = random.choices(choices, proportions)[0]
-                            # perform one point crossover
-                            offspring = self.onePointCrossover(
-                                binaryArrays[p1], binaryArrays[p2])
-                            # now we can mutate this new offspring
-                            probability = 1 / len(offspring)
-                            offspring = self.mutate(
-                                offspring, probability)
-                        newBinaryArrays[individual] = offspring
+                # now we can convert the binary arrays back into weights, then encode them and set them as the new population
+                self.state[p] = self.binaryArraysToIndividuals(
+                    newBinaryArrays, list((self.state[p])[0].size()), numOfBits=self.numOfBits)
 
-                    # now we can convert the binary arrays back into weights, then encode them and set them as the new population
-                    self.state[p] = self.binaryArraysToIndividuals(
-                        newBinaryArrays, list((self.state[p])[0].size()), numOfBits=self.numOfBits)
+                # set the weights to that of the best offspring
+                self.setWeights(index, decoded[best[0]])
+
+    def setWeights(self, index, weights):
+        """function to set the weights for the given indexed parameter"""
+        with torch.no_grad():
+            count = 0
+            for param in self.model.last_layer.parameters():
+                if (count == index):
+                    param.copy_(nn.Parameter(weights))
+                    break
+                count += 1
 
     def grayCode(self, n):
         """function to gray code a number n"""
@@ -122,11 +123,11 @@ class GeneticOptimizer(torch.optim.Optimizer):
         indiv = torch.tensor(numpyArr)
         return indiv
 
-    def decodeIndividual(self, i, numOfBits=4):
-        """function to decode an individual back into weights"""
-        numpyArr = i.detach().cpu().numpy()
+    def decodeIndividuals(self, i, numOfBits=4):
+        """function to decode all the individuals back into weights"""
+        numpyArr = np.array(i)
         numpyArr = self.decodeRealValue(numpyArr, numOfBits=numOfBits)
-        indiv = torch.tensor(numpyArr)
+        indiv = [torch.from_numpy(row) for row in numpyArr]
         return indiv
 
     def encodeRealValue(self, x, numOfBits=4):
@@ -145,8 +146,7 @@ class GeneticOptimizer(torch.optim.Optimizer):
 
     def individualsToBinaryArrays(self, i, numOfBits=4):
         """function to convert an array of individuals i to an array of binary strings"""
-        binary = np.array([value.detach().numpy() for value in i.values()])
-        binary = np.vectorize(np.binary_repr)(binary, numOfBits)
+        binary = np.vectorize(np.binary_repr)(i, numOfBits)
         binary = np.reshape(binary, (np.shape(binary)[0], -1))
         flattened = np.ravel(binary)
         flattened = [i for ele in flattened for i in ele]
@@ -164,9 +164,10 @@ class GeneticOptimizer(torch.optim.Optimizer):
         shape = list([len(b)]) + shape
         shape = tuple((shape))
         individuals = np.reshape(integers, shape)
-        data = dict(zip(range(len(individuals)), individuals))
-        data = {key: torch.tensor(value) for key, value in data.items()}
-        return data
+        individuals = [torch.from_numpy(row) for row in individuals]
+        # data = dict(zip(range(len(individuals)), individuals))
+        # data = {key: torch.tensor(value) for key, value in data.items()}
+        return individuals
 
     def calculateFitnessProprtionate(self, fitnesses):
         """function to calculate the fitness proportionate of each individual"""
