@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data import random_split
 from sklearn.metrics import classification_report
 from cnn import CNN
+from geneticOptimizer import GeneticOptimizer
 import matplotlib
 matplotlib.use("Agg")
 
@@ -44,7 +45,7 @@ VAL_SPLIT = 1 - TRAIN_SPLIT
 # returns: a CNN model, the optimizer and the loss function
 def modelCNN(device, trainingData, channels):
     print("making a CNN")
-
+    print("device: ", device)
     model = CNN(
         numChannels=channels,
         classes=len(trainingData.dataset.classes)).to(device)
@@ -60,14 +61,13 @@ def modelCNN(device, trainingData, channels):
 # model - the model to train
 # opt - the optimization algorithm
 # lossFn - the loss function
-# filename - the name of the file to save the weights in
 # trainingDataLoader - the data loader for the training data
 # valDataLoader - the data loader for the validation data
 # epochs - the number of epochs
 # batchSize - the batch size
 #
 # returns: the trained model and the training history
-def trainModel(device, model, opt, lossFn, filename, trainingDataLoader, valDataLoader, epochs, batchSize):
+def trainModel(device, model, opt, lossFn, trainingDataLoader, valDataLoader, epochs, batchSize):
     print("training model")
     # calculate steps per epoch for training and validation set
     trainSteps = len(trainingDataLoader.dataset) // batchSize
@@ -180,6 +180,7 @@ def loadModel(modelFileName, historyFileName):
 def evaluateModel(device, model, testDataLoader, testingData, H, plotName):
     print("evaluating model...")
     folder = "evaluations/"
+    model = model.to(device)
     # turn off autograd for testing evaluation
     with torch.no_grad():
         # set the model in evaluation mode
@@ -241,26 +242,32 @@ def main():
     cnn, opt, lossFn = modelCNN(device, trainingData, IMAGE_CHANNELS)
 
     # train the CNN model
-    # cnn, H = trainModel(device, cnn, opt, lossFn, CNN_MODEL_FILE, trainingDataLoader,
-    #                    valDataLoader, EPOCHS, BATCH_SIZE)
+    # cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
+    #                     valDataLoader, EPOCHS, BATCH_SIZE)
 
     # reset the last layer of the model
     # cnn.reInitializeFinalLayer()
 
     # save the CNN model to disk
     # saveModel(cnn, H, CNN_MODEL_FILE, CNN_MODEL_TRAIN_HISTORY_FILE)
-    # load the CNN model to disk
+    # load the CNN model from disk
     cnn, H = loadModel(CNN_MODEL_FILE, CNN_MODEL_TRAIN_HISTORY_FILE)
 
-    # # evaluate the model before using the optimization algorithm
-    print("=====================================================\nEvaluating model before using optimization algorithm\n=====================================================")
+    # evaluate the model before using the optimization algorithm
+    print("=====================================================\nEvaluating model before using optimization algorithms\n=====================================================")
     evaluateModel(device, cnn, testDataLoader, testingData,
                   H, "originalCNNEvaluationPlot.png")
 
-    # # train the model using the optimization algorithm
+    # train the model using the genetic optimization algorithm
+    opt = GeneticOptimizer(device, cnn, lossFn=lossFn, pop=2, elites=1)
+    opt.train(trainingDataLoader)
+    # cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
+    #                     valDataLoader, EPOCHS, BATCH_SIZE)
 
-    # # evaluate the model after using the optimization algorithm
-    print("=====================================================\nEvaluating model after using optimization algorithm\n=====================================================")
+    # evaluate the model after using the optimization algorithm
+    print("=====================================================\nEvaluating model after using genetic algorithm\n=====================================================")
+    evaluateModel(device, cnn, testDataLoader, testingData,
+                  H, "geneticAlgorithmEvaluationPlot.png")
 
 
 # run the main method
