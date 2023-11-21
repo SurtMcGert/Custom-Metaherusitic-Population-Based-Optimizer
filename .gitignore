@@ -6,3 +6,4 @@ evaluations/*
 !evaluations/.gitkeep
 test.py
 testMethods.py
+*.pyc
