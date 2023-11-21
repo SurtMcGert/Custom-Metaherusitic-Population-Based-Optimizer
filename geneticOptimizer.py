@@ -54,8 +54,7 @@ class GeneticOptimizer(torch.optim.Optimizer):
                     x = self.model.input
                     y = self.model.y
                     y_pred = self.model(x)
-                    loss = self.lossFn(
-                        y_pred, y)
+                    loss = self.lossFn(y_pred, y)
                     loss = loss.cpu().detach().item()
                     if loss == 0:
                         loss = 0.000001

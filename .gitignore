@@ -5,4 +5,5 @@ models/*
 evaluations/*
 !evaluations/.gitkeep
 test.py
+testCNN.py
 testMethods.py
