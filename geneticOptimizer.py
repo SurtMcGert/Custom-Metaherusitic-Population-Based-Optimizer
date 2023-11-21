@@ -73,10 +73,7 @@ class GeneticOptimizer(torch.optim.Optimizer):
                             loss = 0.000001
                         currentFitness.append(loss)
 
-                        # convert the individual to a binary array
-                        # binaryArray = self.individualToBinaryArray(
-                        #     (self.state[p])[individual], self.numOfBits)
-                        # binaryArrays[individual] = binaryArray
+                    # convert the individual to a binary array
                     binaryArrays = self.individualsToBinaryArrays(
                         self.state[p], numOfBits=self.numOfBits)
 
@@ -111,12 +108,6 @@ class GeneticOptimizer(torch.optim.Optimizer):
                     # now we can convert the binary arrays back into weights, then encode them and set them as the new population
                     self.state[p] = self.binaryArraysToIndividuals(
                         newBinaryArrays, list((self.state[p])[0].size()), numOfBits=self.numOfBits)
-                    # for child, binary in enumerate(newBinaryArrays):
-                    #     tmp = self.binaryArrayToIndividual(newBinaryArrays[child], np.shape(
-                    #         (self.state[p])[child]), numOfBits=self.numOfBits)
-                    #     if child not in best:
-                    #         tmp = self.grayCode(tmp)
-                    #     (self.state[p])[child] = tmp
 
     def grayCode(self, n):
         """function to gray code a number n"""
@@ -152,17 +143,6 @@ class GeneticOptimizer(torch.optim.Optimizer):
         decoded = (-1) + (((1 - (-1)) / ((2 ** numOfBits) - 1)) * n)
         return decoded
 
-    def individualToBinaryArray(self, i, numOfBits=4):
-        """function to convert an individual i to a long list of binary"""
-        binary = np.vectorize(np.binary_repr)(i, numOfBits)
-        binary = np.ravel(binary)
-        characters_list = []
-        for string in binary:
-            for character in string:
-                characters_list.append(character)
-        binary = np.array(characters_list)
-        return binary
-
     def individualsToBinaryArrays(self, i, numOfBits=4):
         """function to convert an array of individuals i to an array of binary strings"""
         binary = np.array([value.detach().numpy() for value in i.values()])
@@ -173,15 +153,8 @@ class GeneticOptimizer(torch.optim.Optimizer):
         output = np.reshape(np.array(flattened), (np.shape(binary)[0], -1))
         return output
 
-    def binaryArrayToIndividual(self, b, shape, numOfBits=4):
-        """function to convert a binary array into an individual"""
-        b = np.reshape(b, (-1, numOfBits))
-        b = np.apply_along_axis(lambda row: ''.join(row), 1, b)
-        b = np.array([int(binary_string, 2) for binary_string in b])
-        b = np.reshape(b, shape)
-        return torch.from_numpy(b)
-
     def binaryArraysToIndividuals(self, b, shape, numOfBits=4):
+        """function to convert a dictionary of binary arrays to a dictionary of pytorch tensors (individuals)"""
         binary = np.array([value for value in b.values()])
         binary = np.ravel(binary)
         binary = np.reshape(binary, (-1, numOfBits))
