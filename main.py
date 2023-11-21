@@ -13,7 +13,9 @@ from sklearn.metrics import classification_report
 from cnn import CNN
 from geneticOptimizer import GeneticOptimizer
 import matplotlib
+import time
 matplotlib.use("Agg")
+
 
 # global variables
 DATASET_PATH = 'dataset'  # the directory that the dataset files are
@@ -260,7 +262,10 @@ def main():
 
     # train the model using the genetic optimization algorithm
     opt = GeneticOptimizer(device, cnn, lossFn=lossFn, pop=2, elites=1)
+    start = time.time()
     opt.train(trainingDataLoader)
+    end = time.time()
+    print("elapsed time: ", (end - start)/60)
     # cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
     #                     valDataLoader, EPOCHS, BATCH_SIZE)
 
