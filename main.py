@@ -262,7 +262,7 @@ def main():
                   H, "originalCNNEvaluationPlot.png")
 
     # train the model using the genetic optimization algorithm
-    opt = GeneticOptimizer(device, cnn, lossFn=lossFn, pop=2, elites=1)
+    opt = GeneticOptimizer(device, cnn, lossFn=lossFn, pop=20, elites=1)
     start = time.time()
     cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
                         valDataLoader, EPOCHS, BATCH_SIZE)

@@ -4,6 +4,7 @@ import torch.nn as nn
 import random
 import numpy as np
 import threading
+import copy
 
 
 class GeneticOptimizer(torch.optim.Optimizer):
@@ -52,7 +53,7 @@ class GeneticOptimizer(torch.optim.Optimizer):
                 # loop over all of the individuals in the population
                 for individual, weights in enumerate(decoded):
                     t = threading.Thread(target=self.calculateFitness, args=(
-                        individual, index, weights, currentFitness, lock))
+                        copy.deepcopy(self.model), individual, index, weights, currentFitness))
                     threads.append(t)
                     t.start()
                 for t in threads:
@@ -86,7 +87,7 @@ class GeneticOptimizer(torch.optim.Optimizer):
                     newBinaryArrays, list((self.state[p])[0].size()), numOfBits=self.numOfBits)
 
                 # set the weights to that of the best offspring
-                self.setWeights(index, decoded[best[0]])
+                self.setWeights(self.model, index, decoded[best[0]])
 
     def generateOffspring(self, individual, best, binary, binaryArrays, fitnessProportionates, newBinaryArrays):
         """function to generate an offspring for an individual"""
@@ -107,31 +108,27 @@ class GeneticOptimizer(torch.optim.Optimizer):
             offspring = self.mutate(offspring, probability)
         newBinaryArrays[individual] = offspring
 
-    def calculateFitness(self, individual, index, weights, currentFitness, lock):
+    def calculateFitness(self, model, individual, index, weights, currentFitness):
         """function to calculate the fitness of an individual for the given index parameter (weights or biases) then save the loss in currentFitness"""
         # assign these weights to the last layer
-        # Acquire the lock before entering the atomic section
-        lock.acquire()
-        self.setWeights(index, weights)
+        self.setWeights(model, index, weights)
         # calculate the individuals fitness
         # set the model in evaluation mode
-        self.model.eval()
-        x = self.model.input
-        y = self.model.y
-        y_pred = self.model(x)
-        # Release the lock when exiting the atomic section
-        lock.release()
+        model.eval()
+        x = model.input
+        y = model.y
+        y_pred = model(x)
         loss = self.lossFn(y_pred, y)
         loss = loss.cpu().detach().item()
         if loss == 0:
             loss = 0.000001
         currentFitness[individual] = loss
 
-    def setWeights(self, index, weights):
+    def setWeights(self, model, index, weights):
         """function to set the weights for the given indexed parameter"""
         with torch.no_grad():
             count = 0
-            for param in self.model.last_layer.parameters():
+            for param in model.last_layer.parameters():
                 if (count == index):
                     param.copy_(nn.Parameter(weights))
                     break
