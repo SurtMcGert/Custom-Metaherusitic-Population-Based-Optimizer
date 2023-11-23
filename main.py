@@ -13,7 +13,9 @@ from sklearn.metrics import classification_report
 from cnn import CNN
 from geneticOptimizer import GeneticOptimizer
 import matplotlib
+import time
 matplotlib.use("Agg")
+
 
 # global variables
 DATASET_PATH = 'dataset'  # the directory that the dataset files are
@@ -81,6 +83,7 @@ def trainModel(device, model, opt, lossFn, trainingDataLoader, valDataLoader, ep
     }
     # loop over our epochs
     for e in range(0, epochs):
+        epochStart = time.time()
         # set the model in training mode
         # initialize the total training and validation loss
         totalTrainLoss = 0
@@ -96,6 +99,7 @@ def trainModel(device, model, opt, lossFn, trainingDataLoader, valDataLoader, ep
             # perform a forward pass and calculate the training loss
             pred = model(x)
             loss = lossFn(pred, y)
+            model.y = y
             # zero out the gradients, perform the backpropagation step,
             # and update the weights
             opt.zero_grad()
@@ -122,6 +126,8 @@ def trainModel(device, model, opt, lossFn, trainingDataLoader, valDataLoader, ep
                 valCorrect += (pred.argmax(1) == y).type(
                     torch.float).sum().item()
 
+        epochEnd = time.time()
+
         # calculate the average training and validation loss
         avgTrainLoss = totalTrainLoss / trainSteps
         avgValLoss = totalValLoss / valSteps
@@ -139,6 +145,9 @@ def trainModel(device, model, opt, lossFn, trainingDataLoader, valDataLoader, ep
             avgTrainLoss, trainCorrect))
         print("Val loss: {:.6f}, Val accuracy: {:.4f}\n".format(
             avgValLoss, valCorrect))
+        epochTimeTaken = epochEnd - epochStart
+        print("time to train epoch: ", epochTimeTaken)
+
     return model, H
 
 
@@ -259,10 +268,12 @@ def main():
                   H, "originalCNNEvaluationPlot.png")
 
     # train the model using the genetic optimization algorithm
-    opt = GeneticOptimizer(device, cnn, lossFn=lossFn, pop=2, elites=1)
-    opt.train(trainingDataLoader)
-    # cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
-    #                     valDataLoader, EPOCHS, BATCH_SIZE)
+    opt = GeneticOptimizer(device, cnn, lossFn=lossFn, pop=30, elites=3)
+    start = time.time()
+    cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
+                        valDataLoader, EPOCHS, BATCH_SIZE)
+    end = time.time()
+    print("elapsed time: ", (end - start)/60)
 
     # evaluate the model after using the optimization algorithm
     print("=====================================================\nEvaluating model after using genetic algorithm\n=====================================================")
