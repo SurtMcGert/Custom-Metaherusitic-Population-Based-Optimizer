@@ -32,7 +32,7 @@ MODEL_WITH_ALGORITHM_FILE = "cnnWithAlgorithm"
 MODEL_WITH_ALGORITHM_TRAIN_HISTORY_FILE = "cnnWithAlgorithmHistory"
 # define training hyperparameters
 BATCH_SIZE = 64
-EPOCHS = 2
+EPOCHS = 10
 # define the train and val splits
 TRAIN_SPLIT = 0.75
 VAL_SPLIT = 1 - TRAIN_SPLIT
@@ -83,6 +83,7 @@ def trainModel(device, model, opt, lossFn, trainingDataLoader, valDataLoader, ep
     }
     # loop over our epochs
     for e in range(0, epochs):
+        epochStart = time.time()
         # set the model in training mode
         # initialize the total training and validation loss
         totalTrainLoss = 0
@@ -125,6 +126,8 @@ def trainModel(device, model, opt, lossFn, trainingDataLoader, valDataLoader, ep
                 valCorrect += (pred.argmax(1) == y).type(
                     torch.float).sum().item()
 
+        epochEnd = time.time()
+
         # calculate the average training and validation loss
         avgTrainLoss = totalTrainLoss / trainSteps
         avgValLoss = totalValLoss / valSteps
@@ -142,6 +145,9 @@ def trainModel(device, model, opt, lossFn, trainingDataLoader, valDataLoader, ep
             avgTrainLoss, trainCorrect))
         print("Val loss: {:.6f}, Val accuracy: {:.4f}\n".format(
             avgValLoss, valCorrect))
+        epochTimeTaken = epochEnd - epochStart
+        print("time to train epoch: ", epochTimeTaken)
+
     return model, H
 
 
@@ -262,7 +268,7 @@ def main():
                   H, "originalCNNEvaluationPlot.png")
 
     # train the model using the genetic optimization algorithm
-    opt = GeneticOptimizer(device, cnn, lossFn=lossFn, pop=20, elites=1)
+    opt = GeneticOptimizer(device, cnn, lossFn=lossFn, pop=30, elites=3)
     start = time.time()
     cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
                         valDataLoader, EPOCHS, BATCH_SIZE)

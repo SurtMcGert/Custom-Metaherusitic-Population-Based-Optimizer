@@ -4,13 +4,14 @@ import torch.nn as nn
 import random
 import numpy as np
 import threading
+from queue import Queue
 import copy
+import time
 
 
 class GeneticOptimizer(torch.optim.Optimizer):
     # Init Method:
     def __init__(self, device, model, lossFn, pop=20, elites=1):
-        # TODO - change this to model.last_layer.parameters()
         params = model.last_layer.parameters()
         super(GeneticOptimizer, self).__init__(params, defaults={'pop': pop})
         self.popSize = pop  # save the population size
@@ -36,37 +37,46 @@ class GeneticOptimizer(torch.optim.Optimizer):
 
     # Step Method
     def step(self):
+        # move the model and the loss function to the device
         self.model = self.model.to(self.device)
         self.lossFn = self.lossFn.to(self.device)
         for group in self.param_groups:
+            # loop over each group i.e. the weights, then the biases
             for index, p in enumerate(group['params']):
-                # a dictionary to hold the binary array for each individual, ready for crossover and mutation
-                binaryArrays = {}
+                # make an array to store all the current fitness values
                 currentFitness = np.zeros(self.popSize)
                 # decode the individuals
                 decoded = self.decodeIndividuals(
                     np.copy(self.state[p]), numOfBits=self.numOfBits)
 
+                # make an array to store all the binary strings of each individual
+                binaryArrays = np.full((
+                    (self.popSize, ((self.state[p])[0].numel()) * self.numOfBits)), '0')
+
                 threads = list()  # create a list for storing threads
-                # Create a lock object
-                lock = threading.Lock()
+
                 # loop over all of the individuals in the population
                 for individual, weights in enumerate(decoded):
-                    t = threading.Thread(target=self.calculateFitness, args=(
-                        copy.deepcopy(self.model), individual, index, weights, currentFitness))
+                    # make a queue of functions for the threads to run
+                    queue = Queue()
+                    # add the function to calculate fitness
+                    queue.put((self.calculateFitness, (copy.deepcopy(
+                        self.model), individual, index, weights, currentFitness)))
+                    # add the function to turn the individual to a binary array
+                    queue.put((self.individualToBinaryArray,
+                              (individual, np.copy((self.state[p])[individual]), binaryArrays, self.numOfBits)))
+                    t = threading.Thread(
+                        target=self.worker_thread, args=(queue,))
                     threads.append(t)
                     t.start()
                 for t in threads:
                     t.join()
-                # convert the individual to a binary array
-                binaryArrays = self.individualsToBinaryArrays(
-                    np.copy(self.state[p]), numOfBits=self.numOfBits)
 
                 # now we have the fitness of each individual, we can perform crossover and mutate
                 # calculate the fitness proportionate
                 fitnessProportionates = self.calculateFitnessProprtionate(
                     np.copy(currentFitness))
-                newBinaryArrays = {}
+                newBinaryArrays = np.full(np.shape(binaryArrays), '0')
                 best = np.argpartition(currentFitness, self.elites)[
                     :self.elites]
 
@@ -88,6 +98,12 @@ class GeneticOptimizer(torch.optim.Optimizer):
 
                 # set the weights to that of the best offspring
                 self.setWeights(self.model, index, decoded[best[0]])
+
+    def worker_thread(self, queue):
+        """function allowing a thread to perform a series of queued operations"""
+        while not queue.empty():
+            function, args = queue.get()
+            function(*args)
 
     def generateOffspring(self, individual, best, binary, binaryArrays, fitnessProportionates, newBinaryArrays):
         """function to generate an offspring for an individual"""
@@ -168,19 +184,16 @@ class GeneticOptimizer(torch.optim.Optimizer):
         decoded = (-1) + (((1 - (-1)) / ((2 ** numOfBits) - 1)) * n)
         return decoded
 
-    def individualsToBinaryArrays(self, i, numOfBits=4):
-        """function to convert an array of individuals i to an array of binary strings"""
-        binary = np.vectorize(np.binary_repr)(i, numOfBits)
-        binary = np.reshape(binary, (np.shape(binary)[0], -1))
+    def individualToBinaryArray(self, individual, weights, outputArray, numOfBits=4):
+        """function to turn an individual to a binary array and store it in the output array"""
+        binary = np.vectorize(np.binary_repr)(weights, numOfBits)
         flattened = np.ravel(binary)
         flattened = [i for ele in flattened for i in ele]
-        output = np.reshape(np.array(flattened), (np.shape(binary)[0], -1))
-        return output
+        outputArray[individual] = flattened
 
     def binaryArraysToIndividuals(self, b, shape, numOfBits=4):
         """function to convert a dictionary of binary arrays to a dictionary of pytorch tensors (individuals)"""
-        binary = np.array([value for value in b.values()])
-        binary = np.ravel(binary)
+        binary = np.ravel(b)
         binary = np.reshape(binary, (-1, numOfBits))
         binary = np.apply_along_axis(lambda row: ''.join(row), 1, binary)
         integers = np.array([int(binary_string, 2)
@@ -213,7 +226,7 @@ class GeneticOptimizer(torch.optim.Optimizer):
     def mutate(self, i, p):
         """function to mutate i with a probability of p"""
         newInt = np.vectorize(int)
-        i = newInt(i)
-        if random.random() < p:
-            i = 1 - i
-        return i.astype(str)
+        random_floats = np.random.random(len(i))
+        flipped_array = np.where(random_floats < p,
+                                 (1 - newInt(np.copy(i))).astype(str), i)
+        return flipped_array
