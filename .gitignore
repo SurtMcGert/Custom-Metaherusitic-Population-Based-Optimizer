@@ -7,3 +7,4 @@ evaluations/*
 test.py
 testCNN.py
 testMethods.py
+*.pyc
