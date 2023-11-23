@@ -143,10 +143,10 @@ def trainModel(device, model, opt, lossFn, trainingDataLoader, valDataLoader, ep
         print("[INFO] EPOCH: {}/{}".format(e + 1, EPOCHS))
         print("Train loss: {:.6f}, Train accuracy: {:.4f}".format(
             avgTrainLoss, trainCorrect))
-        print("Val loss: {:.6f}, Val accuracy: {:.4f}\n".format(
+        print("Val loss: {:.6f}, Val accuracy: {:.4f}".format(
             avgValLoss, valCorrect))
-        epochTimeTaken = epochEnd - epochStart
-        print("time to train epoch: ", epochTimeTaken)
+        epochTimeTaken = (epochEnd - epochStart) / 60
+        print("time to train epoch: ", epochTimeTaken, " minuets\n")
 
     return model, H
 
@@ -268,7 +268,8 @@ def main():
                   H, "originalCNNEvaluationPlot.png")
 
     # train the model using the genetic optimization algorithm
-    opt = GeneticOptimizer(device, cnn, lossFn=lossFn, pop=30, elites=3)
+    opt = GeneticOptimizer(device, cnn, lossFn=lossFn, weightLowerBound=-
+                           0.02, weightUpperBound=0.02, numOfBits=4, pop=10, elites=1)
     start = time.time()
     cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
                         valDataLoader, EPOCHS, BATCH_SIZE)
