@@ -12,7 +12,7 @@ from torch.utils.data import random_split
 from sklearn.metrics import classification_report
 from cnn import CNN
 from geneticOptimizer import GeneticOptimizer
-from gwo import GreyWolfOptimizer
+from greyWolfOptimizer import GreyWolfOptimizer
 import matplotlib
 matplotlib.use("Agg")
 
@@ -97,6 +97,7 @@ def trainModel(device, model, opt, lossFn, trainingDataLoader, valDataLoader, ep
             # perform a forward pass and calculate the training loss
             pred = model(x)
             loss = lossFn(pred, y)
+            model.y = y
             # zero out the gradients, perform the backpropagation step,
             # and update the weights
             opt.zero_grad()
@@ -243,14 +244,14 @@ def main():
     cnn, opt, lossFn = modelCNN(device, trainingData, IMAGE_CHANNELS)
 
     # train the CNN model
-    cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
-                         valDataLoader, EPOCHS, BATCH_SIZE)
+    # cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
+    #                     valDataLoader, EPOCHS, BATCH_SIZE)
 
     # reset the last layer of the model
-    cnn.reInitializeFinalLayer()
+    # cnn.reInitializeFinalLayer()
 
     # save the CNN model to disk
-    saveModel(cnn, H, CNN_MODEL_FILE, CNN_MODEL_TRAIN_HISTORY_FILE)
+    # saveModel(cnn, H, CNN_MODEL_FILE, CNN_MODEL_TRAIN_HISTORY_FILE)
     # load the CNN model from disk
     cnn, H = loadModel(CNN_MODEL_FILE, CNN_MODEL_TRAIN_HISTORY_FILE)
 
@@ -260,9 +261,9 @@ def main():
                   H, "originalCNNEvaluationPlot.png")
 
     # train the model using the genetic optimization algorithm
-    opt = GeneticOptimizer(device, cnn, lossFn=lossFn, pop=2, elites=1)
-    opt.train(trainingDataLoader)
-    # cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
+    #opt = GeneticOptimizer(device, cnn, lossFn=lossFn, pop=2, elites=1)
+    #opt.train(trainingDataLoader)
+    #cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
     #                     valDataLoader, EPOCHS, BATCH_SIZE)
 
     # evaluate the model after using the optimization algorithm
@@ -270,13 +271,16 @@ def main():
     evaluateModel(device, cnn, testDataLoader, testingData,
                   H, "geneticAlgorithmEvaluationPlot.png")
 
+
     # train the model using the grey wolf optimization algorithm
-    opt = GreyWolfOptmizer(device, cnn)
-    opt.train(trainingDataLoader)
-    
-    print("=====================================================\nEvaluating model after using grey wolf optimizer\n=====================================================")
+    opt = GreyWolfOptimizer(device, cnn, 0.01, 0.5, 0.5)
+    cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
+                        valDataLoader, EPOCHS, BATCH_SIZE)
+
+    # evaluate the model after using the optimization algorithm
+    print("=====================================================\nEvaluating model after using grey wolf algorithm\n=====================================================")
     evaluateModel(device, cnn, testDataLoader, testingData,
-                  H, "greyWolfEvaluationPlot.png")
+                  H, "greyWolfAlgorithmEvaluationPlot.png")
 
 # run the main method
 main()
