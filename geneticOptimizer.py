@@ -6,7 +6,6 @@ import numpy as np
 import threading
 from queue import Queue
 import copy
-import time
 
 
 class GeneticOptimizer(torch.optim.Optimizer):
@@ -20,7 +19,6 @@ class GeneticOptimizer(torch.optim.Optimizer):
         self.model = model  # save the model that this optimizer is for
         self.lossFn = lossFn  # save the loss function for this optimizer
         self.state = {}  # a dictionary to store the populations
-        self.fitness = {}  # a dictionary to store the fitnesses
         self.numOfBits = numOfBits  # the number of bits for each weight
         # the lower bound for the weight values
         self.weightLowerBound = weightLowerBound

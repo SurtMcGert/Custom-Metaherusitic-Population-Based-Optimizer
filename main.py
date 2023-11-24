@@ -12,6 +12,7 @@ from torch.utils.data import random_split
 from sklearn.metrics import classification_report
 from cnn import CNN
 from geneticOptimizer import GeneticOptimizer
+from rcgaOptimizer import RCGAOptimizer
 import matplotlib
 import time
 matplotlib.use("Agg")
@@ -267,9 +268,24 @@ def main():
     evaluateModel(device, cnn, testDataLoader, testingData,
                   H, "originalCNNEvaluationPlot.png")
 
+    # # train the model using the genetic optimization algorithm
+    # opt = GeneticOptimizer(device, cnn, lossFn=lossFn, weightLowerBound=-
+    #                        0.02, weightUpperBound=0.02, numOfBits=4, pop=10, elites=1)
+    # start = time.time()
+    # cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
+    #                     valDataLoader, EPOCHS, BATCH_SIZE)
+    # end = time.time()
+    # print("elapsed time: ", (end - start)/60)
+
+    # # evaluate the model after using the optimization algorithm
+    # print("=====================================================\nEvaluating model after using binary coded genetic algorithm\n=====================================================")
+    # evaluateModel(device, cnn, testDataLoader, testingData,
+    #               H, "geneticAlgorithmEvaluationPlot.png")
+
+    # cnn.reInitializeFinalLayer()
     # train the model using the genetic optimization algorithm
-    opt = GeneticOptimizer(device, cnn, lossFn=lossFn, weightLowerBound=-
-                           0.02, weightUpperBound=0.02, numOfBits=4, pop=10, elites=1)
+    opt = RCGAOptimizer(device, cnn, lossFn=lossFn,
+                        weightLowerBound=-1, weightUpperBound=1, pop=10, debug=True)
     start = time.time()
     cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
                         valDataLoader, EPOCHS, BATCH_SIZE)
@@ -277,7 +293,7 @@ def main():
     print("elapsed time: ", (end - start)/60)
 
     # evaluate the model after using the optimization algorithm
-    print("=====================================================\nEvaluating model after using genetic algorithm\n=====================================================")
+    print("=====================================================\nEvaluating model after RCGA\n=====================================================")
     evaluateModel(device, cnn, testDataLoader, testingData,
                   H, "geneticAlgorithmEvaluationPlot.png")
 
