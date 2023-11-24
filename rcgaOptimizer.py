@@ -81,10 +81,22 @@ class RCGAOptimizer(torch.optim.Optimizer):
                         "=================ORIGINAL FITNESSES PROPORTIONATES=================")
                     print(fitnessProportionates)
 
+                eliteIndices = np.argpartition(currentFitness, self.elites)[
+                    :self.elites]
+                eliteIndividuals = (self.state[p])[eliteIndices]
+                eliteFitnesses = np.partition(currentFitness, self.elites)[
+                    :self.elites]
+
+                if self.debug == True:
+                    print(
+                        "=================ELITES=================")
+                    print("indexes: ", eliteIndices)
+                    print(eliteIndividuals)
+
                 # generate the parent pairs
                 choices = np.arange(self.popSize)
                 parents = self.generatePairs(
-                    choices, fitnessProportionates, self.popSize)
+                    choices, fitnessProportionates, self.popSize - self.elites)
 
                 if self.debug == True:
                     print("=================PARENTS=================")
@@ -108,9 +120,6 @@ class RCGAOptimizer(torch.optim.Optimizer):
                 for t in threads:
                     t.join()
 
-                offspring = offspring[:self.popSize]
-                offspringFitness = offspringFitness[:self.popSize]
-
                 if self.debug == True:
                     print("=================NEW OFFSPRING=================")
                     print(offspring)
@@ -118,16 +127,28 @@ class RCGAOptimizer(torch.optim.Optimizer):
                     print("=================NEW FITNESSES=================")
                     print(offspringFitness)
 
-                # calculate who was the best
-                best = np.argmin(offspringFitness)
+                newPop = np.concatenate((eliteIndividuals, offspring), axis=0)
+                newPopFitnesses = np.concatenate((
+                    eliteFitnesses, offspringFitness), axis=0)
+                newPop = newPop[:self.popSize]
+                newPopFitnesses = newPopFitnesses[:self.popSize]
+
                 if self.debug == True:
-                    print("=================BEST OFFSPRING=================")
+                    print("=================NEW POP=================")
+                    print(newPop)
+                    print("=================NEW POP FITNESSES=================")
+                    print(newPopFitnesses)
+
+                # calculate who was the best
+                best = np.argmin(newPopFitnesses)
+                if self.debug == True:
+                    print("=================BEST OF POP=================")
                     print("index: ", best)
-                    print("weights: ", offspring[best])
+                    print("weights: ", newPop[best])
                 # set the networks weights to that of the best offspring
-                self.setWeights(self.model, index, offspring[best])
+                self.setWeights(self.model, index, newPop[best])
                 # save all the offspring
-                self.state[p] = offspring
+                self.state[p] = newPop
 
     def generateOffspring(self, threadID, parents, index, popWeights, offspring, offspringFitness):
         """function to generate an offspring for an individual"""
