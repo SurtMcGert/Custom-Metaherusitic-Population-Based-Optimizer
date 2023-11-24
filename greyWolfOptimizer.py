@@ -28,6 +28,7 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
      
         self.max_iters = max_iters
         
+        # Get the state of the inputs
         for group in self.param_groups:
             for p in group['params']:
                 arr = list()
