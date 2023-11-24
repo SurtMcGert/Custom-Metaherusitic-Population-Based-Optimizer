@@ -122,7 +122,7 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
                     # Calculate new fitnesses
                     wolves = [self.calculateFitness(wolf, index) for wolf in wolves]
 
-                    # Sort wolves by fitness (this is done slightly differently than before since this one is a numpy array)
+                    # Sort wolves by fitness
                     wolves = sorted(wolves, key=lambda wolf: wolf.fitness)
 
                 # Set the weight of the layer to the best solution
