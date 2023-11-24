@@ -58,6 +58,7 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
         
         # Set loss in the individual
         wolf.fitness = loss
+        return wolf
 
     """
     Sets the weights in a specific group
@@ -76,7 +77,7 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
     """
     Grey Wolf algorithm equations
     """
-    def calculateWolf(self, wolf, alpha_pos, beta_pos, delta_pos, p, i, newWolves):
+    def calculateWolf(self, wolf, alpha_pos, beta_pos, delta_pos, p):
         a = alpha_pos - wolf.position.cuda() * torch.rand_like(p)
         b = beta_pos - wolf.position.cuda() * torch.rand_like(p)
         c = delta_pos - wolf.position.cuda() * torch.rand_like(p)
@@ -84,7 +85,7 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
         updated_p = (a + b + c) / 3
 
         wolf.position = updated_p
-        newWolves[i] = wolf
+        return wolf
 
     """
     MAIN FUNCTION
@@ -104,42 +105,23 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
                 for s in self.state[p]:
                     wolves.append(Wolf(s))
                 # Calculate fitness of each wolf
-                for wolf in wolves:
-                   self.calculateFitness(wolf, index)
-
-                # Multiprocessing setup
-                threads = list()
-                # Setup space for new wolves, where the results of the calculations will go
-                newWolves = np.full((self.pop), Wolf(0))
+                wolves = [self.calculateFitness(wolf, index) for wolf in wolves]
 
                 # Main algorithm loop
                 for _ in range(self.max_iters):
-                    for i, wolf in enumerate(wolves):
-                        # Grey Wolf calculations
-                        alpha_pos = wolves[0].position.cuda()
-                        beta_pos = wolves[1].position.cuda()
-                        delta_pos = wolves[2].position.cuda()
-
-                        # Splits the calculation of each individual into separate threads
-                        # `newWolves` and `i` are passed through
-                        # `newWolves` is a numpy array shared between the threads
-                        # `i` represents the specific thread/individual
-                        # Each individual will write their result of their calculations to their own element in the array
-                        t = threading.Thread(target=self.calculateWolf, args=(wolf, alpha_pos, beta_pos, delta_pos, p, i, newWolves))
-                        threads.append(t)
-                        t.start()
-                    for t in threads:
-                        t.join()
-                    # End of multiprocessing
+                    alpha_pos = wolves[0].position.cuda()
+                    beta_pos = wolves[1].position.cuda()
+                    delta_pos = wolves[2].position.cuda()
+                        
+                    # Apply Grey Wolf algorithm
+                    wolves = [self.calculateWolf(wolf, alpha_pos, beta_pos, delta_pos, p) for wolf in wolves]
                     
                     # Calculate new fitnesses
-                    for wolf in newWolves:
-                        self.calculateFitness(wolf, index)
+                    wolves = [self.calculateFitness(wolf, index) for wolf in wolves]
 
                     # Sort wolves by fitness (this is done slightly differently than before since this one is a numpy array)
-                    indices = np.argsort([Wolf.fitness for Wolf in newWolves])
-                    wolves = newWolves[indices]
-                
+                    wolves = [self.calculateFitness(wolf, index) for wolf in wolves]
+
                 # Set the weight of the layer to the best solution
-                print(f"Best of {p}: {newWolves[0].position}")
-                self.setWeights(index, newWolves[0].position)
+                #print(f"Best of {p}: {wolves[0].position}")
+                self.setWeights(index, wolves[0].position)
