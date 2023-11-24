@@ -106,6 +106,9 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
                     wolves.append(Wolf(s))
                 # Calculate fitness of each wolf
                 wolves = [self.calculateFitness(wolf, index) for wolf in wolves]
+                
+                # Sort wolves by fitness
+                wolves = sorted(wolves, key=lambda wolf: wolf.fitness)
 
                 # Main algorithm loop
                 for _ in range(self.max_iters):
@@ -120,7 +123,7 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
                     wolves = [self.calculateFitness(wolf, index) for wolf in wolves]
 
                     # Sort wolves by fitness (this is done slightly differently than before since this one is a numpy array)
-                    wolves = [self.calculateFitness(wolf, index) for wolf in wolves]
+                    wolves = sorted(wolves, key=lambda wolf: wolf.fitness)
 
                 # Set the weight of the layer to the best solution
                 #print(f"Best of {p}: {wolves[0].position}")
