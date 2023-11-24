@@ -13,7 +13,7 @@ class Wolf():
         self.fitness = 0
 
 class GreyWolfOptimizer(torch.optim.Optimizer):
-    def __init__(self, device, model, lossFn, lr=0.01, pop=10, max_iters=10):
+    def __init__(self, device, model, lossFn, pop=10, max_iters=10):
         if pop <= 0:
             raise ValueError("Population size must be positive")
         
@@ -22,7 +22,6 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
 
         self.pop = pop
         self.lossFn= lossFn
-        self.lr = lr
      
         self.device = device
         self.model = model
