@@ -11,9 +11,9 @@ from torch.utils.data import DataLoader
 from torch.utils.data import random_split
 from sklearn.metrics import classification_report
 from cnn import CNN
-from geneticOptimizer import GeneticOptimizer
 from greyWolfOptimizer import GreyWolfOptimizer
 import matplotlib
+import time
 matplotlib.use("Agg")
 
 # global variables
@@ -271,11 +271,13 @@ def main():
     evaluateModel(device, cnn, testDataLoader, testingData,
                   H, "geneticAlgorithmEvaluationPlot.png")
 
-
+    start = time.time()
     # train the model using the grey wolf optimization algorithm
-    opt = GreyWolfOptimizer(device, cnn, 0.01, 0.5, 0.5)
+    opt = GreyWolfOptimizer(device, cnn, lossFn, pop=10, max_iters=20)
     cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
                         valDataLoader, EPOCHS, BATCH_SIZE)
+    end = time.time()
+    print(f"Trained in {round(end-start, 2)}s")
 
     # evaluate the model after using the optimization algorithm
     print("=====================================================\nEvaluating model after using grey wolf algorithm\n=====================================================")
