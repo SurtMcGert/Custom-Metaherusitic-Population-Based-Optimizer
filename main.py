@@ -25,8 +25,10 @@ IMAGE_CHANNELS = 3  # each image is RGB so has 3 channels
 NO_OF_CLASSES = 10  # there are 10 classes of images in the dataset
 # the name of the file storing the weights of the CNN model
 CNN_MODEL_FILE = "cnnModel"
+RCGA_MODEL_FILE = "rcgaModel"
 # the name of the file storing the training history of the CNN
 CNN_MODEL_TRAIN_HISTORY_FILE = "cnnModelHistory"
+RCGA_MODEL_TRAIN_HISTORY_FILE = "rcgaModelHistory"
 # the name of the file storing the weights of the model after using our optimization algorithm
 MODEL_WITH_ALGORITHM_FILE = "cnnWithAlgorithm"
 # the name of the file storing the training history for the model after using our optimization algorithm
@@ -285,17 +287,17 @@ def main():
     # cnn.reInitializeFinalLayer()
     # train the model using the genetic optimization algorithm
     opt = RCGAOptimizer(device, cnn, lossFn=lossFn,
-                        weightLowerBound=-1, weightUpperBound=1, pop=10, debug=True)
+                        weightLowerBound=-1, weightUpperBound=1, pop=6, debug=False)
     start = time.time()
     cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
                         valDataLoader, EPOCHS, BATCH_SIZE)
     end = time.time()
     print("elapsed time: ", (end - start)/60)
-
+    saveModel(cnn, H, RCGA_MODEL_FILE, RCGA_MODEL_TRAIN_HISTORY_FILE)
     # evaluate the model after using the optimization algorithm
     print("=====================================================\nEvaluating model after RCGA\n=====================================================")
     evaluateModel(device, cnn, testDataLoader, testingData,
-                  H, "geneticAlgorithmEvaluationPlot.png")
+                  H, "RCGAEvaluationPlot.png")
 
 
 # run the main method

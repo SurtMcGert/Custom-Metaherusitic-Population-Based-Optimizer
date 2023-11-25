@@ -6,6 +6,8 @@ import numpy as np
 import threading
 import itertools
 import copy
+from scipy import stats
+import math
 
 
 class RCGAOptimizer(torch.optim.Optimizer):
@@ -30,15 +32,17 @@ class RCGAOptimizer(torch.optim.Optimizer):
         self.weightLowerBound = weightLowerBound
         # the upper bound for the weight values
         self.weightUpperBound = weightUpperBound
+        mean = 0
+        stddev = 1. / math.sqrt(self.model.last_layer.weight.size(1))
         # loop over the param groups
         for group in self.param_groups:
             # loop over first the weights then the bias
             for p in group['params']:
                 arr = list()
                 for i in range(pop):
-                    # add the gray coded weights/biases to a dictionary
                     numpyData = np.random.uniform(
-                        self.weightLowerBound, self.weightUpperBound, size=list(np.shape(p.data)))
+                        -stddev, stddev, size=list(np.shape(p.data)))
+
                     arr.append(numpyData)
                 self.state[p] = np.array(arr)
 
@@ -73,7 +77,10 @@ class RCGAOptimizer(torch.optim.Optimizer):
 
                 # now we have the fitness of each individual, we can perform crossover and mutate
                 # calculate the fitness proportionate
-                fitnessProportionates = self.calculateFitnessProprtionate(
+                # fitnessProportionates = self.calculateFitnessProportionate(
+                #     np.copy(currentFitness))
+
+                fitnessProportionates = self.calculateRankProportionate(
                     np.copy(currentFitness))
 
                 if self.debug == True:
@@ -198,15 +205,26 @@ class RCGAOptimizer(torch.optim.Optimizer):
                     break
                 count += 1
 
-    def calculateFitnessProprtionate(self, fitnesses):
+    def calculateFitnessProportionate(self, fitnesses):
         """function to calculate the fitness proportionate of each individual"""
         fitnessProprtionates = fitnesses
-        fitnessProprtionates = np.exp2(fitnessProprtionates)
         reciprocals = np.reciprocal(fitnesses)
         denominator = reciprocals.sum()
         for i, fitness in enumerate(fitnesses):
             fitnessProprtionates[i] = (1 / fitness) / denominator
         return fitnessProprtionates
+
+    def calculateRankProportionate(self, fitnesses):
+        """function to use rank selection to get the proportions for parent selection"""
+        vectorized = np.vectorize(self.giveRank)
+        length = np.full((np.shape(fitnesses)), len(fitnesses))
+        ranks = vectorized(fitnesses, length)
+        denominator = ranks.sum()
+        rankProportionates = ranks/denominator
+        return rankProportionates
+
+    def giveRank(self, arr, len):
+        return len - arr
 
     def blendCrossover(self, p1, p2):
         """function to perform blend crossover on two parents and return the two children"""
@@ -242,7 +260,7 @@ class RCGAOptimizer(torch.optim.Optimizer):
     def mutateDecisionVariable(self, v):
         """function to mutate a decision variable"""
         u = np.random.uniform(0, 1)
-        nm = 20
+        nm = 100
         if (v <= 0.5):
             L = ((2 * u) ** (1/(1 + nm))) - 1
             mutated = v + (L * (v - self.weightLowerBound))
@@ -253,7 +271,7 @@ class RCGAOptimizer(torch.optim.Optimizer):
 
     def generatePairs(self, parents, proportions, popSize):
         """function to generate pairs of parents"""
-        numOfPairs = np.round(popSize/2).astype(int)
+        numOfPairs = math.ceil(popSize/2)
         pairs = list()
         usedPairs = list()
         for i in range(numOfPairs):
