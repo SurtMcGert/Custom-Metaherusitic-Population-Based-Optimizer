@@ -86,6 +86,26 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
 
         wolf.position = updated_p
         return wolf
+        
+    def calculateFitnessProportionate(self, wolves):
+        fitnessProportionates = []
+        denominator = 0
+        
+        threads = list()
+              
+        for wolf in wolves:
+            np.reciprocal(wolf.fitness)
+            denominator += wolf.fitness
+            
+            
+        wolves = [self.calculateFitnessProportionateHelper(wolf, denominator) for wolf in wolves]    
+
+        return wolves
+        
+    def calculateFitnessProportionateHelper(self, wolf, denominator):
+        wolf.fitness = (1/wolf.fitness)/denominator
+        return wolf
+    
 
     """
     MAIN FUNCTION
@@ -106,9 +126,9 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
                     wolves.append(Wolf(s))
                 # Calculate fitness of each wolf
                 wolves = [self.calculateFitness(wolf, index) for wolf in wolves]
-                
+                wolves = self.calculateFitnessProportionate(wolves)
                 # Sort wolves by fitness
-                wolves = sorted(wolves, key=lambda wolf: wolf.fitness)
+                wolves = sorted(wolves, key=lambda wolf: wolf.fitness)         
 
                 # Main algorithm loop
                 for _ in range(self.max_iters):
@@ -122,6 +142,8 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
                     # Calculate new fitnesses
                     wolves = [self.calculateFitness(wolf, index) for wolf in wolves]
 
+                    wolves = self.calculateFitnessProportionate(wolves)
+                    
                     # Sort wolves by fitness
                     wolves = sorted(wolves, key=lambda wolf: wolf.fitness)
 
