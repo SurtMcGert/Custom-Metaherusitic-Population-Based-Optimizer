@@ -124,28 +124,23 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
                 # Set initial state of the wolves based on the output of the previous layer
                 for s in self.state[p]:
                     wolves.append(Wolf(s))
-                # Calculate fitness of each wolf
-                wolves = [self.calculateFitness(wolf, index) for wolf in wolves]
-                wolves = self.calculateFitnessProportionate(wolves)
-                # Sort wolves by fitness
-                wolves = sorted(wolves, key=lambda wolf: wolf.fitness)         
 
                 # Main algorithm loop
                 for _ in range(self.max_iters):
+                                    
+                    # Fitnesses
+                    wolves = [self.calculateFitness(wolf, index) for wolf in wolves]
+                    wolves = self.calculateFitnessProportionate(wolves)
+                    
+                    # Sort wolves by fitness
+                    wolves = sorted(wolves, key=lambda wolf: wolf.fitness)
+                    
                     alpha_pos = wolves[0].position.cuda()
                     beta_pos = wolves[1].position.cuda()
                     delta_pos = wolves[2].position.cuda()
                         
                     # Apply Grey Wolf algorithm
                     wolves = [self.calculateWolf(wolf, alpha_pos, beta_pos, delta_pos, p) for wolf in wolves]
-                    
-                    # Calculate new fitnesses
-                    wolves = [self.calculateFitness(wolf, index) for wolf in wolves]
-
-                    wolves = self.calculateFitnessProportionate(wolves)
-                    
-                    # Sort wolves by fitness
-                    wolves = sorted(wolves, key=lambda wolf: wolf.fitness)
 
                 # Set the weight of the layer to the best solution
                 #print(f"Best of {p}: {wolves[0].position}")
