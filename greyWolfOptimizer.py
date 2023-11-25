@@ -1,3 +1,4 @@
+import math
 import threading
 from queue import Queue
 
@@ -86,7 +87,10 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
 
         wolf.position = updated_p
         return wolf
-        
+    
+    """
+    Calculates the fitness proportionate of each solution
+    """
     def calculateFitnessProportionate(self, wolves):
         fitnessProportionates = []
         denominator = 0
@@ -94,9 +98,8 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
         threads = list()
               
         for wolf in wolves:
-            np.reciprocal(wolf.fitness)
+            wolf.fitness = np.reciprocal(wolf.fitness)
             denominator += wolf.fitness
-            
             
         wolves = [self.calculateFitnessProportionateHelper(wolf, denominator) for wolf in wolves]    
 
@@ -105,7 +108,7 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
     def calculateFitnessProportionateHelper(self, wolf, denominator):
         wolf.fitness = (1/wolf.fitness)/denominator
         return wolf
-    
+        
 
     """
     MAIN FUNCTION
@@ -128,13 +131,15 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
                 # Main algorithm loop
                 for _ in range(self.max_iters):
                                     
-                    # Fitnesses
+                    # Calculate the fitness of each wolf
                     wolves = [self.calculateFitness(wolf, index) for wolf in wolves]
+                    # Calculate the fitness proportionate
                     wolves = self.calculateFitnessProportionate(wolves)
                     
-                    # Sort wolves by fitness
+                    # Sort wolves by fitness proportionate
                     wolves = sorted(wolves, key=lambda wolf: wolf.fitness)
                     
+                    # Get positions of the best three solutions
                     alpha_pos = wolves[0].position.cuda()
                     beta_pos = wolves[1].position.cuda()
                     delta_pos = wolves[2].position.cuda()
@@ -142,6 +147,10 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
                     # Apply Grey Wolf algorithm
                     wolves = [self.calculateWolf(wolf, alpha_pos, beta_pos, delta_pos, p) for wolf in wolves]
 
+                # Calculate the fitness of each wolf
+                wolves = [self.calculateFitness(wolf, index) for wolf in wolves]
+                # Calculate the fitness proportionate
+                wolves = self.calculateFitnessProportionate(wolves)
+                
                 # Set the weight of the layer to the best solution
-                #print(f"Best of {p}: {wolves[0].position}")
                 self.setWeights(index, wolves[0].position)
