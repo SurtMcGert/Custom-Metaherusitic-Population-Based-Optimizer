@@ -6,12 +6,12 @@ import numpy as np
 import threading
 from queue import Queue
 import copy
-import time
+import math
 
 
 class GeneticOptimizer(torch.optim.Optimizer):
     # Init Method:
-    def __init__(self, device, model, lossFn, pop=20, elites=1):
+    def __init__(self, device, model, lossFn, weightLowerBound, weightUpperBound, numOfBits=32, pop=20, elites=1):
         params = model.last_layer.parameters()
         super(GeneticOptimizer, self).__init__(params, defaults={'pop': pop})
         self.popSize = pop  # save the population size
@@ -20,19 +20,26 @@ class GeneticOptimizer(torch.optim.Optimizer):
         self.model = model  # save the model that this optimizer is for
         self.lossFn = lossFn  # save the loss function for this optimizer
         self.state = {}  # a dictionary to store the populations
-        self.fitness = {}  # a dictionary to store the fitnesses
-        self.numOfBits = 32  # the number of bits for each weight
+        self.numOfBits = numOfBits  # the number of bits for each weight
+        # the lower bound for the weight values
+        self.weightLowerBound = weightLowerBound
+        # the upper bound for the weight values
+        self.weightUpperBound = weightUpperBound
         if (elites > pop):
             raise ("you cant have more elites than in your population")
         # loop over the param groups
         for group in self.param_groups:
             # loop over first the weights then the bias
             for p in group['params']:
+                stddev = 1. / math.sqrt(p.size(-1))
                 arr = list()
                 for i in range(pop):
                     # add the gray coded weights/biases to a dictionary
+                    numpyData = np.random.uniform(
+                        -stddev, stddev, size=list(np.shape(p.data)))
+                    tensor = torch.tensor(numpyData)
                     arr.append(self.encodeIndividual(
-                        torch.rand_like(p.data), numOfBits=self.numOfBits))
+                        tensor, numOfBits=self.numOfBits))
                 self.state[p] = arr
 
     # Step Method
@@ -159,29 +166,31 @@ class GeneticOptimizer(torch.optim.Optimizer):
     def encodeIndividual(self, i, numOfBits=4):
         """function to encode an individual with graycoding"""
         numpyArr = i.detach().cpu().numpy()
-        numpyArr = self.encodeRealValue(numpyArr, numOfBits=numOfBits)
+        numpyArr = self.encodeRealValue(
+            numpyArr, lower=self.weightLowerBound, upper=self.weightUpperBound, numOfBits=numOfBits)
         indiv = torch.tensor(numpyArr)
         return indiv
 
     def decodeIndividuals(self, i, numOfBits=4):
         """function to decode all the individuals back into weights"""
         numpyArr = np.array(i)
-        numpyArr = self.decodeRealValue(numpyArr, numOfBits=numOfBits)
+        numpyArr = self.decodeRealValue(
+            numpyArr, lower=self.weightLowerBound, upper=self.weightUpperBound, numOfBits=numOfBits)
         indiv = [torch.from_numpy(row) for row in numpyArr]
         return indiv
 
-    def encodeRealValue(self, x, numOfBits=4):
+    def encodeRealValue(self, x, lower, upper, numOfBits=4):
         """function to encode a real value x as a graycoded integer"""
-        integer = ((x - (-1)) * ((2 ** numOfBits) - 1))/(1 - (-1))
-        np.round(integer, 0)
+        integer = ((x - (lower)) * ((2 ** numOfBits) - 1))/(upper - (lower))
+        integer = np.round(integer, 0)
         integer = integer.astype(np.int64)
         grayCoded = self.grayCode(integer)
         return grayCoded
 
-    def decodeRealValue(self, n, numOfBits=4):
+    def decodeRealValue(self, n, lower, upper, numOfBits=4):
         """function to decode a graycoded integer n to a real value"""
         # convert the binary to an integer
-        decoded = (-1) + (((1 - (-1)) / ((2 ** numOfBits) - 1)) * n)
+        decoded = (lower) + (((upper - (lower)) / ((2 ** numOfBits) - 1)) * n)
         return decoded
 
     def individualToBinaryArray(self, individual, weights, outputArray, numOfBits=4):
@@ -202,8 +211,6 @@ class GeneticOptimizer(torch.optim.Optimizer):
         shape = tuple((shape))
         individuals = np.reshape(integers, shape)
         individuals = [torch.from_numpy(row) for row in individuals]
-        # data = dict(zip(range(len(individuals)), individuals))
-        # data = {key: torch.tensor(value) for key, value in data.items()}
         return individuals
 
     def calculateFitnessProprtionate(self, fitnesses):
