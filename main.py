@@ -293,11 +293,11 @@ def main():
                         valDataLoader, EPOCHS, BATCH_SIZE)
     end = time.time()
     print("elapsed time: ", (end - start)/60)
-    saveModel(cnn, H, RCGA_MODEL_FILE, RCGA_MODEL_TRAIN_HISTORY_FILE)
+    # saveModel(cnn, H, RCGA_MODEL_FILE, RCGA_MODEL_TRAIN_HISTORY_FILE)
     # evaluate the model after using the optimization algorithm
     print("=====================================================\nEvaluating model after RCGA\n=====================================================")
-    evaluateModel(device, cnn, testDataLoader, testingData,
-                  H, "RCGAEvaluationPlot.png")
+    # evaluateModel(device, cnn, testDataLoader, testingData,
+    #               H, "RCGAEvaluationPlot.png")
 
 
 # run the main method
