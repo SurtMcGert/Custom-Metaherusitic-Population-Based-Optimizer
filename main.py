@@ -12,6 +12,7 @@ from torch.utils.data import random_split
 from sklearn.metrics import classification_report
 from cnn import CNN
 from geneticOptimizer import GeneticOptimizer
+from rcgaOptimizer import RCGAOptimizer
 import matplotlib
 import time
 matplotlib.use("Agg")
@@ -24,8 +25,10 @@ IMAGE_CHANNELS = 3  # each image is RGB so has 3 channels
 NO_OF_CLASSES = 10  # there are 10 classes of images in the dataset
 # the name of the file storing the weights of the CNN model
 CNN_MODEL_FILE = "cnnModel"
+RCGA_MODEL_FILE = "rcgaModel"
 # the name of the file storing the training history of the CNN
 CNN_MODEL_TRAIN_HISTORY_FILE = "cnnModelHistory"
+RCGA_MODEL_TRAIN_HISTORY_FILE = "rcgaModelHistory"
 # the name of the file storing the weights of the model after using our optimization algorithm
 MODEL_WITH_ALGORITHM_FILE = "cnnWithAlgorithm"
 # the name of the file storing the training history for the model after using our optimization algorithm
@@ -143,10 +146,10 @@ def trainModel(device, model, opt, lossFn, trainingDataLoader, valDataLoader, ep
         print("[INFO] EPOCH: {}/{}".format(e + 1, EPOCHS))
         print("Train loss: {:.6f}, Train accuracy: {:.4f}".format(
             avgTrainLoss, trainCorrect))
-        print("Val loss: {:.6f}, Val accuracy: {:.4f}\n".format(
+        print("Val loss: {:.6f}, Val accuracy: {:.4f}".format(
             avgValLoss, valCorrect))
-        epochTimeTaken = epochEnd - epochStart
-        print("time to train epoch: ", epochTimeTaken)
+        epochTimeTaken = (epochEnd - epochStart) / 60
+        print("time to train epoch: ", epochTimeTaken, " minuets\n")
 
     return model, H
 
@@ -267,18 +270,34 @@ def main():
     evaluateModel(device, cnn, testDataLoader, testingData,
                   H, "originalCNNEvaluationPlot.png")
 
+    # # train the model using the genetic optimization algorithm
+    # opt = GeneticOptimizer(device, cnn, lossFn=lossFn, weightLowerBound=-
+    #                        0.02, weightUpperBound=0.02, numOfBits=4, pop=10, elites=1)
+    # start = time.time()
+    # cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
+    #                     valDataLoader, EPOCHS, BATCH_SIZE)
+    # end = time.time()
+    # print("elapsed time: ", (end - start)/60)
+
+    # # evaluate the model after using the optimization algorithm
+    # print("=====================================================\nEvaluating model after using binary coded genetic algorithm\n=====================================================")
+    # evaluateModel(device, cnn, testDataLoader, testingData,
+    #               H, "geneticAlgorithmEvaluationPlot.png")
+
+    # cnn.reInitializeFinalLayer()
     # train the model using the genetic optimization algorithm
-    opt = GeneticOptimizer(device, cnn, lossFn=lossFn, pop=30, elites=3)
+    opt = RCGAOptimizer(device, cnn, lossFn=lossFn,
+                        weightLowerBound=-1, weightUpperBound=1, pop=100, debug=False)
     start = time.time()
     cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
                         valDataLoader, EPOCHS, BATCH_SIZE)
     end = time.time()
     print("elapsed time: ", (end - start)/60)
-
+    saveModel(cnn, H, RCGA_MODEL_FILE, RCGA_MODEL_TRAIN_HISTORY_FILE)
     # evaluate the model after using the optimization algorithm
-    print("=====================================================\nEvaluating model after using genetic algorithm\n=====================================================")
+    print("=====================================================\nEvaluating model after RCGA\n=====================================================")
     evaluateModel(device, cnn, testDataLoader, testingData,
-                  H, "geneticAlgorithmEvaluationPlot.png")
+                  H, "RCGAEvaluationPlot.png")
 
 
 # run the main method
