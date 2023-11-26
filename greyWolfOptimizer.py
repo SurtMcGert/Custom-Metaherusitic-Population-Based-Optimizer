@@ -7,11 +7,19 @@ import torch
 import torch.nn as nn
 
 
-# An individual
 class Wolf():
     def __init__(self, position):
+        """
+        Represents a solution
+
+        Args:
+            position (torch.Tensor): the position of the wolf. Equivalent to the solution the indivudal represents
+        """
+
         self.position = position # A solution
         self.fitness = 0
+
+        print(type(self.position))
 
 class GreyWolfOptimizer(torch.optim.Optimizer):
     def __init__(self, device, model, lossFn, pop=10, max_iters=10):
@@ -37,12 +45,17 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
                     arr.append(torch.rand_like(p.data))
                 self.state[p] = arr
 
-    """
-    Calculates the fitness of an individual
-    wolf: the individual to calculate, sets its `fitness` field when complete
-    index: the index of the group the wolf belongs to
-    """
     def calculateFitness(self, wolf, index):
+        """
+        Calculates the fitness of a wolf
+
+        Args:
+            wolf (Wolf): the wolf to calculate
+            index (int): the index of the group the wolf belongs to
+
+        Returns:
+            wolf (Wolf): the updated wolf
+        """
         # Set the weight in the final layer to the solution carried by this individual
         self.setWeights(index, wolf.position)
         
@@ -61,12 +74,14 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
         wolf.fitness = loss
         return wolf
 
-    """
-    Sets the weights in a specific group
-    index: the index of the group
-    weights: weights to set to
-    """
     def setWeights(self, index, weights):
+        """
+        Sets the weights in a specific group
+
+        Args:
+            index (int): the index of the group
+            weights (torch.Tensor): weights to set to
+        """
         with torch.no_grad():
             count = 0
             for param in self.model.last_layer.parameters():
@@ -75,10 +90,21 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
                     break
                 count += 1
 
-    """
-    Grey Wolf algorithm equations
-    """
     def calculateWolf(self, wolf, alpha_pos, beta_pos, delta_pos, p):
+        """
+        Applies the Grey Wolf algorithm equations to a wolf, updating its position
+
+        Args:
+            wolf (Wolf): the wolf to update the position of
+            alpha_pos (torch.Tensor): the position of the alpha wolf
+            beta_pos (torch.Tensor): the position of the beta wolf
+            delta_pos (torch.Tensor): the position of the delta wolf
+            p (torch.nn.paramter.Parameter): the current parameter. This is used to create a randomly-generated tensor of the same size
+
+        Returns:
+            wolf (Wolf): the updated wolf
+
+        """
         a = alpha_pos - wolf.position.cuda() * torch.rand_like(p)
         b = beta_pos - wolf.position.cuda() * torch.rand_like(p)
         c = delta_pos - wolf.position.cuda() * torch.rand_like(p)
@@ -88,15 +114,18 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
         wolf.position = updated_p
         return wolf
     
-    """
-    Calculates the fitness proportionate of each solution
-    """
     def calculateFitnessProportionate(self, wolves):
-        fitnessProportionates = []
+        """
+        Calculates the fitness proportionate of each wolf
+
+        Args:
+            wolves (Wolf[]): the population of wolves
+        
+        Returns:
+            wolves (Wolf[]): the updated population of wolves
+        """
         denominator = 0
         
-        threads = list()
-              
         for wolf in wolves:
             wolf.fitness = np.reciprocal(wolf.fitness)
             denominator += wolf.fitness
@@ -104,8 +133,19 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
         wolves = [self.calculateFitnessProportionateHelper(wolf, denominator) for wolf in wolves]    
 
         return wolves
-        
+
     def calculateFitnessProportionateHelper(self, wolf, denominator):
+        """
+        Calculates the fitness proportion of a wolf
+
+        Args:
+            wolf (Wolf): the wolf to update
+            denominator (torch.Tensor): the sum of the fitnesses of the population
+
+        Returns:
+            wolf (Wolf): the updated wolf
+        
+        """
         wolf.fitness = (1/wolf.fitness)/denominator
         return wolf
         
