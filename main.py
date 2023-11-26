@@ -287,7 +287,7 @@ def main():
     # cnn.reInitializeFinalLayer()
     # train the model using the genetic optimization algorithm
     opt = RCGAOptimizer(device, cnn, lossFn=lossFn,
-                        weightLowerBound=-1, weightUpperBound=1, pop=6, debug=False)
+                        weightLowerBound=-1, weightUpperBound=1, pop=100, debug=False)
     start = time.time()
     cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
                         valDataLoader, EPOCHS, BATCH_SIZE)

@@ -6,6 +6,7 @@ import numpy as np
 import threading
 from queue import Queue
 import copy
+import math
 
 
 class GeneticOptimizer(torch.optim.Optimizer):
@@ -30,11 +31,12 @@ class GeneticOptimizer(torch.optim.Optimizer):
         for group in self.param_groups:
             # loop over first the weights then the bias
             for p in group['params']:
+                stddev = 1. / math.sqrt(p.size(-1))
                 arr = list()
                 for i in range(pop):
                     # add the gray coded weights/biases to a dictionary
                     numpyData = np.random.uniform(
-                        self.weightLowerBound, self.weightUpperBound, size=list(np.shape(p.data)))
+                        -stddev, stddev, size=list(np.shape(p.data)))
                     tensor = torch.tensor(numpyData)
                     arr.append(self.encodeIndividual(
                         tensor, numOfBits=self.numOfBits))
