@@ -171,8 +171,7 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
                 # Set initial state of the wolves based on the output of the previous layer
                 for s in self.state[p]:
                     wolves.append(Wolf(s))
-
-                print(np.shape(p))
+                    
                 # Main algorithm loop
                 for _ in range(self.max_iters):
                                     
