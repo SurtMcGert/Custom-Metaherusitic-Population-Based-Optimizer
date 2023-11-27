@@ -105,9 +105,13 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
             wolf (Wolf): the updated wolf
 
         """
-        a = alpha_pos - wolf.position.cuda() * torch.rand_like(p)
-        b = beta_pos - wolf.position.cuda() * torch.rand_like(p)
-        c = delta_pos - wolf.position.cuda() * torch.rand_like(p)
+        d_a = alpha_pos - wolf.position.cuda() * torch.rand_like(p)
+        d_b = beta_pos - wolf.position.cuda() * torch.rand_like(p)
+        d_c = delta_pos - wolf.position.cuda() * torch.rand_like(p)
+        
+        a = wolf.position.cuda() - alpha_pos * d_a
+        b = wolf.position.cuda() - beta_pos * d_b
+        c = wolf.position.cuda() - delta_pos * d_c
 
         updated_p = (a + b + c) / 3
 
@@ -168,6 +172,7 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
                 for s in self.state[p]:
                     wolves.append(Wolf(s))
 
+                print(np.shape(p))
                 # Main algorithm loop
                 for _ in range(self.max_iters):
                                     
