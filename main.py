@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from torch import nn
 from torch.optim import Adam
 from torchvision.datasets import CIFAR10
+from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
 from torch.utils.data import random_split
 from sklearn.metrics import classification_report
@@ -28,8 +29,11 @@ IMAGE_CHANNELS = 3  # each image is RGB so has 3 channels
 NO_OF_CLASSES = 10  # there are 10 classes of images in the dataset
 # the name of the files for storing trained networks and training history
 CNN_MODEL_FILE = "cnnModel"
+# the name of the file storing the training history of the CNN
 CNN_MODEL_TRAIN_HISTORY_FILE = "cnnModelHistory"
+# the name of the file storing the weights of the model after using our optimization algorithm
 MODEL_WITH_ALGORITHM_FILE = "cnnWithAlgorithm"
+# the name of the file storing the training history for the model after using our optimization algorithm
 MODEL_WITH_ALGORITHM_TRAIN_HISTORY_FILE = "cnnWithAlgorithmHistory"
 RESNET_MODEL_FILE = "resnetModel"
 RESNET_MODEL_TRAIN_HISTORY_FILE = "resnetModelHistory"
@@ -183,6 +187,53 @@ def loadModel(modelFileName, historyFileName):
     H = torch.load(folder+historyFileName)
     return model, H
 
+
+        # calculate the average training and validation loss
+        avgTrainLoss = totalTrainLoss / trainSteps
+        avgValLoss = totalValLoss / valSteps
+        # calculate the training and validation accuracy
+        trainCorrect = trainCorrect / len(trainingDataLoader.dataset)
+        valCorrect = valCorrect / len(valDataLoader.dataset)
+        # update our training history
+        H["train_loss"].append(avgTrainLoss.cpu().detach().numpy())
+        H["train_acc"].append(trainCorrect)
+        H["val_loss"].append(avgValLoss.cpu().detach().numpy())
+        H["val_acc"].append(valCorrect)
+        # print the model training and validation information
+        print("[INFO] EPOCH: {}/{}".format(e + 1, EPOCHS))
+        print("Train loss: {:.6f}, Train accuracy: {:.4f}".format(
+            avgTrainLoss, trainCorrect))
+        print("Val loss: {:.6f}, Val accuracy: {:.4f}\n".format(
+            avgValLoss, valCorrect))
+    return model, H
+
+
+# function to save a model and its history
+# inputs:
+# model - the model to save
+# H - the training history for the model
+# modelFileName - the file name to save the model into
+# historyFileName - the file name to save the training history into
+def saveModel(model, H, modelFileName, historyFileName):
+    print("saving model: ", modelFileName)
+    folder = "models/"
+    torch.save(model, folder+modelFileName)
+    torch.save(H, folder+historyFileName)
+
+
+# function to load a model and its history
+# inputs:
+# modelFileName - the file name to load the model from
+# historyFileName - the file name to load the training history from
+#
+# returns: the model, and the history
+def loadModel(modelFileName, historyFileName):
+    print("loading model: ", modelFileName)
+    folder = "models/"
+    model = torch.load(folder+modelFileName)
+    H = torch.load(folder+historyFileName)
+    return model, H
+
 # function to check if the model file exists
 # inputs:
 # file - the file name to look for
@@ -203,6 +254,7 @@ def trainingFileExists(file):
 # H - the training history
 # plotName - the name of the file to save the plot for this evaluation
 
+    return model
 
 def evaluateModel(device, model, testDataLoader, testingData, H, plotName):
     print("evaluating model...")
@@ -239,6 +291,14 @@ def evaluateModel(device, model, testDataLoader, testingData, H, plotName):
     plt.legend(loc="lower left")
     plt.savefig(folder+plotName)
 
+    # freeze all the layers except the last
+    initModel.trainable = False
+    layer = initModel.layers[-1]
+    layer.trainable = True
+    
+    # re-initialize the last layer of the network
+    weights = [layer.kernel, layer.bias]
+    initializers = [layer.kernel_initializer, layer.bias_initializer]
 
 # function to build a CNN
 # inputs:
@@ -374,6 +434,18 @@ def main():
                   H, "originalResNetBatAlgorithmEvaluationPlot.png")
     cnn.reInitializeFinalLayer()
 
+    start = time.time()
+    # train the model using the grey wolf optimization algorithm
+    opt = GreyWolfOptimizer(device, cnn, lossFn, pop=10, max_iters=20)
+    cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
+                        valDataLoader, EPOCHS, BATCH_SIZE)
+    end = time.time()
+    print(f"Trained in {round(end-start, 2)}s")
+
+    # evaluate the model after using the optimization algorithm
+    print("=====================================================\nEvaluating model after using grey wolf algorithm\n=====================================================")
+    evaluateModel(device, cnn, testDataLoader, testingData,
+                  H, "greyWolfAlgorithmEvaluationPlot.png")
 
 # run the main method
 main()
