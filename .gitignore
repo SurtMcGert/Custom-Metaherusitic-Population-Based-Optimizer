@@ -2,3 +2,7 @@ dataset/*
 !dataset/.gitkeep
 image.png
 cnnModel.h5
+evaluations/*
+!evaluations/.gitkeep
+models
+data
