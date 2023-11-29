@@ -6,3 +6,6 @@ evaluations/*
 !evaluations/.gitkeep
 models
 data
+test.py
+testMethods.py
+testCNN.py
