@@ -1,11 +1,10 @@
 dataset/*
 !dataset/.gitkeep
-image.png
-cnnModel.h5
+models/*
+!models/.gitkeep
 evaluations/*
 !evaluations/.gitkeep
-models
-data
 test.py
-testMethods.py
 testCNN.py
+testMethods.py
+*.pyc

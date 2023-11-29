@@ -55,9 +55,19 @@ def modelCNN(device, trainingData, channels):
     lossFn = nn.NLLLoss()
     return model, opt, lossFn
 
+    print("device: ", device)
+    model = CNN(
+        numChannels=channels,
+        classes=len(trainingData.dataset.classes)).to(device)
+    # initialize our optimizer and loss function
+    opt = Adam(model.parameters(), lr=0.001)
+    lossFn = nn.NLLLoss()
+    return model, opt, lossFn
+
 
 # function to train a given model and save its weights to a file
 # inputs:
+# device - the device to train the model on
 # device - the device to train the model on
 # model - the model to train
 # opt - the optimization algorithm
@@ -221,28 +231,32 @@ def evaluateModel(device, model, testDataLoader, testingData, H, plotName):
 # channels - the number of channels the images have
 #
 # returns: a CNN model, the optimizer and the loss function
+
+
 def modelResNet(device, trainingData):
     print("making a ResNet")
     print("device: ", device)
-    model = ResNet(ResidualBlock, [3,4,6,3],).to(device)
+    model = ResNet(ResidualBlock, [3, 4, 6, 3],).to(device)
     # initialize our optimizer and loss function
     opt = Adam(model.parameters(), lr=0.001)
     lossFn = nn.CrossEntropyLoss()
     return model, opt, lossFn
 
 # main method
+
+
 def main():
     print("getting training and testing data")
     trainingData = CIFAR10(root="dataset", train=True, download=True,
-                           transform = transforms.Compose([
-    transforms.Resize((224,224)),
-    transforms.ToTensor(),           # Convert images to PyTorch tensors
-]))
+                           transform=transforms.Compose([
+                               transforms.Resize((224, 224)),
+                               transforms.ToTensor(),           # Convert images to PyTorch tensors
+                           ]))
     testingData = CIFAR10(root="dataset", train=False, download=True,
-                          transform = transforms.Compose([
-    transforms.Resize((224,224)),
-    transforms.ToTensor(),           # Convert images to PyTorch tensors
-]))
+                          transform=transforms.Compose([
+                              transforms.Resize((224, 224)),
+                              transforms.ToTensor(),           # Convert images to PyTorch tensors
+                          ]))
     # calculate the train/validation split
     print("generating the train/validation split...")
     numTrainSamples = int(len(trainingData) * TRAIN_SPLIT)
@@ -265,7 +279,8 @@ def main():
     resnet, opt, lossFn = modelResNet(device, trainingData)
 
     # train the resnet model
-    resnet, H_resnet = trainModel(device, resnet, opt, lossFn, trainingDataLoader, valDataLoader, EPOCHS, BATCH_SIZE)
+    resnet, H_resnet = trainModel(
+        device, resnet, opt, lossFn, trainingDataLoader, valDataLoader, EPOCHS, BATCH_SIZE)
 
     # reset the last layer of the resnet model
     resnet.reInitializeFinalLayer()
@@ -277,19 +292,19 @@ def main():
     resnet, H_resnet = loadModel('resnetModel', 'resnetModelHistory')
 
     # make a convolutional network
-    #cnn, opt, lossFn = modelCNN(device, trainingData, IMAGE_CHANNELS)
+    # cnn, opt, lossFn = modelCNN(device, trainingData, IMAGE_CHANNELS)
 
     # train the CNN model
-    #cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
+    # cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
     #                     valDataLoader, EPOCHS, BATCH_SIZE)
 
     # reset the last layer of the model
-    #cnn.reInitializeFinalLayer()
+    # cnn.reInitializeFinalLayer()
 
     # save the CNN model to disk
-    #saveModel(cnn, H, CNN_MODEL_FILE, CNN_MODEL_TRAIN_HISTORY_FILE)
+    # saveModel(cnn, H, CNN_MODEL_FILE, CNN_MODEL_TRAIN_HISTORY_FILE)
     # load the CNN model from disk
-    #cnn, H_cnn = loadModel(CNN_MODEL_FILE, CNN_MODEL_TRAIN_HISTORY_FILE)
+    # cnn, H_cnn = loadModel(CNN_MODEL_FILE, CNN_MODEL_TRAIN_HISTORY_FILE)
 
     # evaluate the model before using the optimization algorithm
     print("=====================================================\nEvaluating resnet model before using optimization algorithms\n=====================================================")
@@ -297,34 +312,34 @@ def main():
                   H_resnet, "originalResnetEvaluationPlot.png")
 
     # train the model using the genetic optimization algorithm
-    #opt = GeneticOptimizer(device, cnn, lossFn=lossFn, pop=2, elites=1)
-    #opt.train(trainingDataLoader)
-    #cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
+    # opt = GeneticOptimizer(device, cnn, lossFn=lossFn, pop=2, elites=1)
+    # opt.train(trainingDataLoader)
+    # cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
     #                     valDataLoader, EPOCHS, BATCH_SIZE)
 
     # evaluate the model after using the optimization algorithm
-    #print("=====================================================\nEvaluating model after using genetic algorithm\n=====================================================")
-    #evaluateModel(device, cnn, testDataLoader, testingData,
+    # print("=====================================================\nEvaluating model after using genetic algorithm\n=====================================================")
+    # evaluateModel(device, cnn, testDataLoader, testingData,
     #              H, "geneticAlgorithmEvaluationPlot.png")
 
-    #start = time.time()
+    # start = time.time()
     # train the model using the grey wolf optimization algorithm
-    #opt = GreyWolfOptimizer(device, cnn, lossFn, pop=10, max_iters=20)
-    #cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
+    # opt = GreyWolfOptimizer(device, cnn, lossFn, pop=10, max_iters=20)
+    # cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
     #                    valDataLoader, EPOCHS, BATCH_SIZE)
-    #end = time.time()
-    #print(f"Trained in {round(end-start, 2)}s")
+    # end = time.time()
+    # print(f"Trained in {round(end-start, 2)}s")
 
     # evaluate the model after using the optimization algorithm
-    #print("=====================================================\nEvaluating model after using grey wolf algorithm\n=====================================================")
-    #evaluateModel(device, cnn, testDataLoader, testingData,
+    # print("=====================================================\nEvaluating model after using grey wolf algorithm\n=====================================================")
+    # evaluateModel(device, cnn, testDataLoader, testingData,
     #              H, "greyWolfAlgorithmEvaluationPlot.png")
 
     start = time.time()
     lossFn = nn.CrossEntropyLoss()
     opt = batOptimizer(device, resnet, lossFn, populationSize=10, max_iters=20)
     resnet, H_resnet = trainModel(device, resnet, opt, lossFn, trainingDataLoader,
-                        valDataLoader, EPOCHS, BATCH_SIZE)
+                                  valDataLoader, EPOCHS, BATCH_SIZE)
     end = time.time()
     print(f"Trained in {round(end-start, 2)}s")
 
@@ -332,6 +347,7 @@ def main():
     print("=====================================================\nEvaluating resnet model after using bat algorithm\n=====================================================")
     evaluateModel(device, resnet, testDataLoader, testingData,
                   H_resnet, "originalResNetBatAlgorithmEvaluationPlot.png")
+
 
 # run the main method
 main()
