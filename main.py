@@ -12,7 +12,7 @@ from sklearn.metrics import classification_report
 from cnn import *
 from batOptimizer import batOptimizer
 from geneticOptimizer import GeneticOptimizer
-from greyWolfOptimizer import GreyWolfOptimizer
+# from greyWolfOptimizer import GreyWolfOptimizer
 from rcgaOptimizer import RCGAOptimizer
 from nsga_iiOptimizer import NSGAIIOptimizer
 from torchvision import transforms
@@ -296,6 +296,7 @@ def main():
         cnn, H = loadModel(
             RESNET_MODEL_FILE, RESNET_MODEL_TRAIN_HISTORY_FILE)
     else:
+        print("training model ", RESNET_MODEL_FILE)
         cnn, H = trainModel(
             device, cnn, opt, lossFn, trainingDataLoader, valDataLoader, EPOCHS, BATCH_SIZE)
         # reset the last layer of the resnet model
@@ -309,8 +310,9 @@ def main():
                   H, "originalResnetEvaluationPlot.png")
 
     # train the model using the genetic optimization algorithm
+    print("binary coded genetic optimizer")
     opt = GeneticOptimizer(device, cnn, lossFn=lossFn,
-                           weightLowerBound=-1, weightUpperBound=1, pop=2, elites=1)
+                           weightLowerBound=-1, weightUpperBound=1, pop=50, elites=10)
     if trainingFileExists(BCGA_MODEL_FILE):
         cnn, H = loadModel(
             BCGA_MODEL_FILE, BCGA_MODEL_TRAIN_HISTORY_FILE)
@@ -326,6 +328,7 @@ def main():
     cnn.reInitializeFinalLayer()
 
     # train the model using the real coded genetic optimization algorithm
+    print("real coded genetic optimizer")
     opt = RCGAOptimizer(device, cnn, lossFn=lossFn,
                         weightLowerBound=-1, weightUpperBound=1, pop=100, elites=0)
     if trainingFileExists(RCGA_MODEL_FILE):
@@ -342,22 +345,24 @@ def main():
                   H, "RCGAEvaluationPlot.png")
     cnn.reInitializeFinalLayer()
 
-    # train the model using the grey wolf optimization algorithm
-    if trainingFileExists(WOLF_MODEL_FILE):
-        cnn, H = loadModel(
-            WOLF_MODEL_FILE, WOLF_MODEL_TRAIN_HISTORY_FILE)
-    else:
-        opt = GreyWolfOptimizer(device, cnn, lossFn, pop=10, max_iters=20)
-        cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
-                            valDataLoader, EPOCHS, BATCH_SIZE)
-        saveModel(cnn, H, WOLF_MODEL_FILE, WOLF_MODEL_TRAIN_HISTORY_FILE)
+    # # train the model using the grey wolf optimization algorithm
+    # if trainingFileExists(WOLF_MODEL_FILE):
+    #     cnn, H = loadModel(
+    #         WOLF_MODEL_FILE, WOLF_MODEL_TRAIN_HISTORY_FILE)
+    # else:
+    #     opt = GreyWolfOptimizer(device, cnn, lossFn, pop=10, max_iters=20)
+    #     cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
+    #                         valDataLoader, EPOCHS, BATCH_SIZE)
+    #     saveModel(cnn, H, WOLF_MODEL_FILE, WOLF_MODEL_TRAIN_HISTORY_FILE)
 
-    # evaluate the model after using the optimization algorithm
-    print("=====================================================\nEvaluating model after using grey wolf algorithm\n=====================================================")
-    evaluateModel(device, cnn, testDataLoader, testingData,
-                  H, "greyWolfAlgorithmEvaluationPlot.png")
-    cnn.reInitializeFinalLayer()
+    # # evaluate the model after using the optimization algorithm
+    # print("=====================================================\nEvaluating model after using grey wolf algorithm\n=====================================================")
+    # evaluateModel(device, cnn, testDataLoader, testingData,
+    #               H, "greyWolfAlgorithmEvaluationPlot.png")
+    # cnn.reInitializeFinalLayer()
 
+    # train the model using the bat optimizer
+    print("bat PS optimizer")
     if trainingFileExists(BAT_MODEL_FILE):
         cnn, H = loadModel(
             BAT_MODEL_FILE, BAT_MODEL_TRAIN_HISTORY_FILE)
