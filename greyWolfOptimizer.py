@@ -7,20 +7,6 @@ import torch
 import torch.nn as nn
 
 
-class Wolf():
-    def __init__(self, position):
-        """
-        Represents a solution
-
-        Args:
-            position (torch.Tensor): the position of the wolf. Equivalent to the solution the indivudal represents
-        """
-
-        self.position = position # A solution
-        self.fitness = 0
-
-        print(type(self.position))
-
 class GreyWolfOptimizer(torch.optim.Optimizer):
     def __init__(self, device, model, lossFn, pop=10, max_iters=10):
         if pop <= 0:
@@ -45,19 +31,19 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
                     arr.append(torch.rand_like(p.data))
                 self.state[p] = arr
 
-    def calculateFitness(self, wolf, index):
+    def calculateFitness(self, solution, index, i, fitnesses):
         """
-        Calculates the fitness of a wolf
+        Calculates the fitness of a solution
 
         Args:
-            wolf (Wolf): the wolf to calculate
-            index (int): the index of the group the wolf belongs to
+            wolf (torch.Tensor): the solution to calculate from
+            index (int): the index of the group the solution belongs to
 
         Returns:
-            wolf (Wolf): the updated wolf
+            loss (float): the fitness of the solution
         """
         # Set the weight in the final layer to the solution carried by this individual
-        self.setWeights(index, wolf.position)
+        self.setWeights(index, torch.tensor(solution))
         
         # Compute the output
         self.model.eval()
@@ -71,8 +57,7 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
         loss = loss.cpu().detach().item()
         
         # Set loss in the individual
-        wolf.fitness = loss
-        return wolf
+        fitnesses[i] = loss
 
     def setWeights(self, index, weights):
         """
@@ -90,33 +75,32 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
                     break
                 count += 1
 
-    def calculateWolf(self, wolf, alpha_pos, beta_pos, delta_pos, p):
+    def calculateWolf(self, position, alpha_pos, beta_pos, delta_pos, p):
         """
         Applies the Grey Wolf algorithm equations to a wolf, updating its position
 
         Args:
-            wolf (Wolf): the wolf to update the position of
-            alpha_pos (torch.Tensor): the position of the alpha wolf
-            beta_pos (torch.Tensor): the position of the beta wolf
-            delta_pos (torch.Tensor): the position of the delta wolf
+            position (numpy.Array): position to calculate from
+            alpha_pos (numpy.Array): the position of the alpha wolf
+            beta_pos (numpy.Array): the position of the beta wolf
+            delta_pos (numpy.Array): the position of the delta wolf
             p (torch.nn.paramter.Parameter): the current parameter. This is used to create a randomly-generated tensor of the same size
 
         Returns:
-            wolf (Wolf): the updated wolf
+            updated_p (numpy.Array): newly-calculated position
 
         """
-        d_a = alpha_pos - wolf.position.cuda() * torch.rand_like(p)
-        d_b = beta_pos - wolf.position.cuda() * torch.rand_like(p)
-        d_c = delta_pos - wolf.position.cuda() * torch.rand_like(p)
+        d_a = alpha_pos - position * np.random.rand(*np.shape(p[1]['position']))
+        d_b = beta_pos - position * np.random.rand(*np.shape(p[1]['position']))
+        d_c = delta_pos - position * np.random.rand(*np.shape(p[1]['position']))
         
-        a = wolf.position.cuda() - alpha_pos * d_a
-        b = wolf.position.cuda() - beta_pos * d_b
-        c = wolf.position.cuda() - delta_pos * d_c
+        a = position - alpha_pos * d_a
+        b = position - beta_pos * d_b
+        c = position - delta_pos * d_c
 
         updated_p = (a + b + c) / 3
 
-        wolf.position = updated_p
-        return wolf
+        return updated_p
     
     def calculateFitnessProportionate(self, wolves):
         """
@@ -168,33 +152,30 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
             for index, p in enumerate(group['params']):
                 # Create population of individuals (wolves)
                 wolves = []
-                # Set initial state of the wolves based on the output of the previous layer
-                for s in self.state[p]:
-                    wolves.append(Wolf(s))
-                    
+                fitnesses = np.zeros(self.pop)
+                for i in range(self.pop):
+                    dic = {}
+                    dic['id'] = i
+                    dic['position'] = np.random.uniform(-1, 1, size=list(np.shape(p.data)))
+                    wolves.append(dic)
+                    self.calculateFitness(dic['position'], index, i, fitnesses)
+
+                self.state[p] = np.array(wolves)
+                state = self.state[p]
                 # Main algorithm loop
                 for _ in range(self.max_iters):
-                                    
-                    # Calculate the fitness of each wolf
-                    wolves = [self.calculateFitness(wolf, index) for wolf in wolves]
-                    # Calculate the fitness proportionate
-                    wolves = self.calculateFitnessProportionate(wolves)
-                    
-                    # Sort wolves by fitness proportionate
-                    wolves = sorted(wolves, key=lambda wolf: wolf.fitness)
-                    
-                    # Get positions of the best three solutions
-                    alpha_pos = wolves[0].position.cuda()
-                    beta_pos = wolves[1].position.cuda()
-                    delta_pos = wolves[2].position.cuda()
-                        
-                    # Apply Grey Wolf algorithm
-                    wolves = [self.calculateWolf(wolf, alpha_pos, beta_pos, delta_pos, p) for wolf in wolves]
+                    wolvesSortedIndexes = np.argsort(fitnesses)
 
-                # Calculate the fitness of each wolf
-                wolves = [self.calculateFitness(wolf, index) for wolf in wolves]
-                # Calculate the fitness proportionate
-                wolves = self.calculateFitnessProportionate(wolves)
-                
+                    # Get positions of the best three solutions
+                    alpha_pos = wolves[wolvesSortedIndexes[0]]['position']
+                    beta_pos = wolves[wolvesSortedIndexes[1]]['position']
+                    delta_pos = wolves[wolvesSortedIndexes[2]]['position']
+
+                    for i, wolf in enumerate(state):
+                        # Apply Grey Wolf algorithm
+                        wolf['position'] = self.calculateWolf(wolf['position'], alpha_pos, beta_pos, delta_pos, state)
+                        self.calculateFitness(wolf['position'], index, i, fitnesses)
+                    
                 # Set the weight of the layer to the best solution
-                self.setWeights(index, wolves[0].position)
+                wolvesSortedIndexes = np.argsort(fitnesses)
+                self.setWeights(index, torch.tensor(wolves[wolvesSortedIndexes[0]]['position']))
