@@ -10,7 +10,7 @@ import random
 
 
 class BatOptimizer(torch.optim.Optimizer):
-    def __init__(self, device, model, lossFn, populationSize=100, alpha=0.9, Amin=0, gamma=0.9, fmin=0, fmax=100, rmin=0, rmax=1, debug=False):
+    def __init__(self, device, model, lossFn, populationSize=100, Amin=0, gamma=0.9, fmin=0, fmax=100, rmin=0, rmax=1, debug=False):
         if populationSize < 0:
             raise ValueError("Population size must be positive")
 
@@ -24,7 +24,6 @@ class BatOptimizer(torch.optim.Optimizer):
         # Store parameter values
         self.populationSize = populationSize
         self.model = model
-        self.alpha = alpha
         self.Amin = Amin
         self.gamma = gamma
         self.fmin = fmin
@@ -129,7 +128,7 @@ class BatOptimizer(torch.optim.Optimizer):
                 newFitnesses = np.zeros(self.populationSize)
                 for bat, id in enumerate((self.state[p])['id']):
                     t = threading.Thread(target=self.updateBats, args=(
-                        copy.deepcopy(self.model), index, bat, (self.state[p])['f'], (self.state[p])['v'], (self.state[p])['x'], (self.state[p])['r'], (self.state[p])['a'], ((self.state[p])['x'])[0], currentFitness, newFitnesses))
+                        copy.deepcopy(self.model), index, bat, (self.state[p])['f'], (self.state[p])['v'], (self.state[p])['x'], (self.state[p])['r'], (self.state[p])['r0'], (self.state[p])['a'], ((self.state[p])['x'])[0], currentFitness, newFitnesses))
                     threads.append(t)
                     t.start()
                 for t in threads:
@@ -228,7 +227,7 @@ class BatOptimizer(torch.optim.Optimizer):
                     break
                 count += 1
 
-    def updateBats(self, model, index, bat, f, v, x, r, a, best, currentFitnesses, newFitnesses):
+    def updateBats(self, model, index, bat, f, v, x, r, r0, a, best, currentFitnesses, newFitnesses):
         """
         function to update the position of a bat
 
@@ -240,6 +239,7 @@ class BatOptimizer(torch.optim.Optimizer):
             v (numpy.ndarray): the array of bat velocities
             x (numpy.ndarray): the array of bat positions
             r (numpy.ndarray): the array of bat pulse rates
+            r0 (numpy.ndarray): tha array of the bats initial pulse rates
             a (numpy.ndarray): the array of bat loudnesses
             best (numpy.ndarray): the position of the best bat
             currentFitnesses (numpy.ndarray): an array of the current fitnesses of the bats
@@ -258,6 +258,10 @@ class BatOptimizer(torch.optim.Optimizer):
         self.calculateFitness(model, bat, index, newX, newFitnesses)
 
         if ((newFitnesses[bat] < currentFitnesses[bat]) & (np.random.rand() < a[bat])):
+            alpha = 0.999  # if this is bigger, the loudness gets reduced by less each time, meaning more new fitnesses get accepted
+            y = 0.1  # if this is smaller, the pulse rate gets closer to the original pulse rate faster
             x[bat] = newX
+            a[bat] = a[bat] * alpha
+            r[bat] = r0[bat] * (1 - (math.exp(-y)))
         else:
             newFitnesses[bat] = currentFitnesses[bat]
