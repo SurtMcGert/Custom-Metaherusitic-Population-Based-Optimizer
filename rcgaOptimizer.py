@@ -15,7 +15,10 @@ class RCGAOptimizer(torch.optim.Optimizer):
     def __init__(self, device, model, lossFn, weightLowerBound, weightUpperBound, pop=20, elites=0, debug=False):
         params = model.last_layer.parameters()
         super(RCGAOptimizer, self).__init__(params, defaults={'pop': pop})
+<<<<<<< HEAD
         self.counter = 0
+=======
+>>>>>>> e7225f52565fe752fa81b699a668532ad8588525
         self.popSize = pop  # save the population size
         self.device = device  # save the device
         self.model = model  # save the model that this optimizer is for
@@ -54,10 +57,16 @@ class RCGAOptimizer(torch.optim.Optimizer):
         for group in self.param_groups:
             # loop over each group i.e. the weights, then the biases
             for index, p in enumerate(group['params']):
+<<<<<<< HEAD
                 self.counter +=1
                 print(f"Index: {index}")
                 # make an array to store all the current fitness values
                 currentFitness = np.zeros(self.popSize)
+=======
+                # make an array to store all the current fitness values
+                currentFitness = np.zeros(self.popSize)
+
+>>>>>>> e7225f52565fe752fa81b699a668532ad8588525
                 threads = list()  # create a list for storing threads
                 if self.debug == True:
                     print("=================ORIGINAL POPULATION=================")
@@ -404,4 +413,8 @@ class RCGAOptimizer(torch.optim.Optimizer):
         existing_pairs_set = set(set(p) for p in existingPairs)
 
         # Check if the new pair set exists in the set of existing pair sets
+<<<<<<< HEAD
         return new_pair_set in existing_pairs_set
+=======
+        return new_pair_set in existing_pairs_set
+>>>>>>> e7225f52565fe752fa81b699a668532ad8588525
