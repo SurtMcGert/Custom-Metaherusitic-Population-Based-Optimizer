@@ -101,7 +101,7 @@ class GeneticOptimizer(torch.optim.Optimizer):
                 # generate pairs of parents to breed
                 choices = np.arange(self.popSize)
                 pairs = self.generatePairs(
-                    choices, fitnessProportionates, self.popSize)
+                    choices, fitnessProportionates, self.popSize - self.elites)
                 numOfOffspring = 2 * len(pairs)
                 offspringFitness = np.zeros(numOfOffspring)
 

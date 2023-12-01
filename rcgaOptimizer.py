@@ -56,11 +56,11 @@ class RCGAOptimizer(torch.optim.Optimizer):
                 # make an array to store all the current fitness values
                 currentFitness = np.zeros(self.popSize)
 
-                threads = list()  # create a list for storing threads
                 if self.debug == True:
                     print("=================ORIGINAL POPULATION=================")
                     print(self.state[p])
 
+                threads = list()  # create a list for storing threads
                 # loop over all of the individuals in the population and generate their fitness
                 for individual, weights in enumerate(self.state[p]):
                     t = threading.Thread(target=self.calculateFitness, args=(
@@ -240,21 +240,19 @@ class RCGAOptimizer(torch.optim.Optimizer):
                     break
                 count += 1
 
-    def calculateFitnessProportionate(self, fitnesses):
+    def calculateFitnessProprtionate(self, fitnesses):
         """
         function to calculate the fitness proportionate of each individual
 
         Args:
-            fitnesses (numpy.ndarray): the fitnesses of all the individuals
+            fitnesses (numpy.ndarray): an array of fitnesses
 
         Returns:
-            fitnessProportionates (numpy.ndarray): the fitness proportionate of each individual
+            fitnessProportionates (numpy.ndarray): an array of proportions
         """
-        fitnessProprtionates = fitnesses
         reciprocals = np.reciprocal(fitnesses)
         denominator = reciprocals.sum()
-        for i, fitness in enumerate(fitnesses):
-            fitnessProprtionates[i] = (1 / fitness) / denominator
+        fitnessProprtionates = reciprocals/denominator
         return fitnessProprtionates
 
     def calculateRankProportionate(self, fitnesses):

@@ -28,10 +28,10 @@ class CNN(Module):
         self.relu2 = ReLU()
         self.maxpool2 = MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
         # initialize first (and only) set of FC => RELU layers
-        self.fc1 = Linear(in_features=1800, out_features=500)
+        self.fc1 = Linear(in_features=1800, out_features=300)
         self.relu3 = ReLU()
         # initialize our softmax classifier
-        self.last_layer = Linear(in_features=500, out_features=classes)
+        self.last_layer = Linear(in_features=300, out_features=classes)
         self.logSoftmax = LogSoftmax(dim=1)
 
     def forward(self, x):
@@ -60,7 +60,7 @@ class CNN(Module):
 
     def reInitializeFinalLayer(self):
         # freeze all layers except the last and reset its parameters
-        self.last_layer = Linear(in_features=500, out_features=self.classes)
+        self.last_layer = Linear(in_features=300, out_features=self.classes)
         for name, layer in self.named_parameters():
             if 'last' in name:
                 layer.requires_grad = True
