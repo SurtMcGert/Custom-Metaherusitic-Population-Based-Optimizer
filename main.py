@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data import random_split
 from sklearn.metrics import classification_report
 from cnn import *
-from batOptimizer import batOptimizer
+from batOptimizer import BatOptimizer
 from geneticOptimizer import GeneticOptimizer
 from greyWolfOptimizer import GreyWolfOptimizer
 from rcgaOptimizer import RCGAOptimizer
@@ -365,8 +365,9 @@ def main():
         cnn, H = loadModel(
             WOLF_MODEL_FILE, WOLF_MODEL_TRAIN_HISTORY_FILE)
     else:
+        numOfIters = len(trainingDataLoader) * EPOCHS
         opt = GreyWolfOptimizer(device, cnn, lossFn,
-                                numOfIters=len(trainingDataLoader.dataset), pop=100, debug=False)
+                                numOfIters=numOfIters, pop=40, debug=False)
         cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
                             valDataLoader, EPOCHS, BATCH_SIZE)
         saveModel(cnn, H, WOLF_MODEL_FILE, WOLF_MODEL_TRAIN_HISTORY_FILE)
@@ -383,7 +384,7 @@ def main():
         cnn, H = loadModel(
             BAT_MODEL_FILE, BAT_MODEL_TRAIN_HISTORY_FILE)
     else:
-        opt = batOptimizer(device, cnn, lossFn,
+        opt = BatOptimizer(device, cnn, lossFn,
                            populationSize=10, max_iters=20)
         cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
                             valDataLoader, EPOCHS, BATCH_SIZE)
@@ -396,12 +397,12 @@ def main():
     cnn.reInitializeFinalLayer()
 
     # evaluate the model after using the NSGAII optimization algorithm
-    # train the model using the grey wolf optimization algorithm
     if trainingFileExists(NSGAII_MODEL_FILE):
         cnn, H = loadModel(
             NSGAII_MODEL_FILE, NSGAII_MODEL_TRAIN_HISTORY_FILE)
     else:
-        opt = GreyWolfOptimizer(device, cnn, lossFn, pop=10, max_iters=20)
+        opt = NSGAIIOptimizer(device, cnn, lossFn, weightLowerBound=-1,
+                              weightUpperBound=1, pop=100, numOfBits=16)
         cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
                             valDataLoader, EPOCHS, BATCH_SIZE)
 

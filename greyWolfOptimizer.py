@@ -119,7 +119,7 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
                 self.state[p] = wolves
 
                 # Set the weight of the layer to the best solution
-                self.setWeights(index, wolves[0])
+                self.setWeights(self.model, index, wolves[0])
 
     def calculateFitness(self, model, wolf, index, weights, currentFitness):
         """
@@ -132,33 +132,37 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
             weights (numpy.ndarray): the weights of this wolf to calculate the fitness of
             currentFitness (numpy.ndarray): the array to store the fitness in
         """
+        model = model.to(self.device)
+
         # Set the weight in the final layer to the solution carried by this individual
-        self.setWeights(index, weights)
+        self.setWeights(model, index, weights)
 
         # Compute the output
+        self.lossFn = self.lossFn.to(self.device)
         model.eval()
-        x = self.model.input
-        y = self.model.y
+        x = (model.input).to(self.device)
+        y = (model.y).to(self.device)
 
-        y_pred = self.model(x)
+        y_pred = model(x)
 
         # Calculate loss
         loss = self.lossFn(y_pred, y)
         loss = loss.cpu().detach().item()
         currentFitness[wolf] = loss
 
-    def setWeights(self, index, weights):
+    def setWeights(self, model, index, weights):
         """
         Sets the weights in a specific group
 
         Args:
+            model (pytorch.module): the model to set the weights on
             index (int): the index of the group
             weights (numpy.ndarray): weights to set to
         """
         weights = torch.tensor(weights)
         with torch.no_grad():
             count = 0
-            for param in self.model.last_layer.parameters():
+            for param in model.last_layer.parameters():
                 if (count == index):
                     param.copy_(nn.Parameter(weights))
                     break

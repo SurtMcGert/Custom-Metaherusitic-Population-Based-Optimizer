@@ -3,23 +3,27 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+import math
+import threading
+import copy
+import random
 
 
-class batOptimizer(torch.optim.Optimizer):
-    def __init__(self, device, model, lossFn, populationSize=100, max_iters=10, alpha=0.9, Amin = 0, gamma=0.9, fmin = 0, fmax = 100, rmin=0, rmax=1):
-        if populationSize <0:
+class BatOptimizer(torch.optim.Optimizer):
+    def __init__(self, device, model, lossFn, populationSize=100, alpha=0.9, Amin=0, gamma=0.9, fmin=0, fmax=100, rmin=0, rmax=1, debug=False):
+        if populationSize < 0:
             raise ValueError("Population size must be positive")
-        
-        params = model.last_layer.parameters()
-        super(batOptimizer, self).__init__(params, defaults={'populationSize' : populationSize})
 
-        #Counter
+        params = model.last_layer.parameters()
+        super(BatOptimizer, self).__init__(
+            params, defaults={'populationSize': populationSize})
+
+        # Counter
         self.counter = 0
 
-        #Store parameter values
+        # Store parameter values
         self.populationSize = populationSize
         self.model = model
-        self.max_iters = max_iters
         self.alpha = alpha
         self.Amin = Amin
         self.gamma = gamma
@@ -31,125 +35,229 @@ class batOptimizer(torch.optim.Optimizer):
         self.device = device
         self.model = model
         self.lossFn = lossFn
+        self.debug = debug
 
-        
+        # Working only on last layer so only 1 group
+        for group in self.param_groups:
+            # First p is weights, second p is the biases
+            for index, p in enumerate(group['params']):
+                bats = list()  # make a list to store the bats
+                loudnesses = np.random.uniform(
+                    1, 2, size=(self.populationSize, 1))
+                stddev = 1. / math.sqrt(p.size(-1))
+                dic = {}
+                # Save bat's id
+                dic['id'] = np.array(range(self.populationSize))
+                # Initialize bat's position
+                shape = (self.populationSize, )+tuple(list(np.shape(p.data)))
+                dic['x'] = np.random.uniform(-stddev, stddev, size=shape)
+                # Initialize bat's velocity
+                dic['v'] = np.random.uniform(-stddev, stddev, size=shape)
+                # Initialize bat's frequency
+                dic['f'] = self.fmin + ((self.fmax - self.fmin) * np.random.uniform(
+                    0, 1, size=self.populationSize))
+                # Initialize bat's pulse rate
+                dic['r'] = np.random.uniform(
+                    self.rmin, self.rmax, size=self.populationSize)
+                # Save bat's initial pulse rate
+                dic['r0'] = dic['r']
+                # Save bat's loudness
+                dic['a'] = loudnesses
+                # Save bat's potential new solution
+                dic['xnew'] = np.zeros(shape=shape)
+                self.state[p] = dic
+
     def step(self):
         # Set GPU usage
         self.model = self.model.to(self.device)
         self.lossFn = self.lossFn.to(self.device)
-
         # Working only on last layer so only 1 group
         for group in self.param_groups:
-
             # First p is weights, second p is the biases
             for index, p in enumerate(group['params']):
+                if self.debug == True:
+                    print(
+                        "=================ORIGINAL POPULATION POSITIONS=================")
+                    print((self.state[p])['x'])
+                    print(
+                        "=================ORIGINAL POPULATION VELOCITIES=================")
+                    print((self.state[p])['v'])
+                    print(
+                        "=================ORIGINAL POPULATION FREQUENCIES=================")
+                    print((self.state[p])['f'])
+                    print(
+                        "=================ORIGINAL POPULATION PULES RATES=================")
+                    print((self.state[p])['r'])
                 self.counter += 1
-                print(f"Counter: {self.counter}")
-                #Current fitnesses of bats stored in order of bat id
+
+                # Calculate bat's fitness
+                # Current fitnesses of bats stored in order of bat id
                 currentFitness = np.zeros(self.populationSize)
-                loudnesses = np.random.uniform(1, 2, size=(self.populationSize,1))
-                bats = list()
-                for i in range(self.populationSize):
-                    dic = {}
-                    # Save bat's id
-                    dic['id'] = i
-                    # Initialize bat's position
-                    dic['x'] = np.random.uniform(-1, 1, size=list(np.shape(p.data)))
-                    # Initialize bat's velocity
-                    dic['v'] = np.random.uniform(-1, 1, size=list(np.shape(p.data)))
-                    # Initialize bat's frequency
-                    dic['f'] = (self.fmax - self.fmin) * np.random.rand() + self.fmin
-                    # Initialize bat's pulse rate
-                    dic['r'] = (self.rmax - self.rmin) * np.random.rand() + self.rmin
-                    # Save bat's initial pulse rate
-                    dic['r0'] = dic['r']
-                    # Save bat's loudness
-                    dic['a'] = loudnesses[i]
-                    # Save bat's potential new solution
-                    dic['xnew'] = np.zeros(shape = np.shape(p.data))
-                    # Store each bat in bats array
-                    bats.append(dic)
-                    # Calculate bat's fitness
-                    self.calculateFitness(self.model, i, index, torch.tensor(dic['x']), currentFitness)
+                threads = list()  # create a list for storing threads
+                # loop over all of the bats in the population and generate their fitness
+                for bat, weights in enumerate((self.state[p])['x']):
+                    t = threading.Thread(target=self.calculateFitness, args=(
+                        copy.deepcopy(self.model), bat, index, weights, currentFitness))
+                    threads.append(t)
+                    t.start()
+                for t in threads:
+                    t.join()
 
-                self.state[p] = np.array(bats)
+                if self.debug == True:
+                    print("=================FITNESSES=================")
+                    print(currentFitness)
+
                 # Sort each bat's index by its fitness
-                fitnessSortedIndexes = np.argsort(currentFitness)
-                state = self.state[p]
-                for t in range(self.max_iters): 
-                    for bat in state:
-                        # Random values for loudness and pulse rate
-                        beta = np.random.rand()
-                        rand = np.random.rand()
+                orderedIndices = np.argsort(currentFitness)
+                currentFitness = np.sort(currentFitness)
+                (self.state[p])['id'] = [((self.state[p])['id'])[i]
+                                         for i in orderedIndices]
+                (self.state[p])['x'] = [((self.state[p])['x'])[i]
+                                        for i in orderedIndices]
+                (self.state[p])['v'] = [((self.state[p])['v'])[i]
+                                        for i in orderedIndices]
+                (self.state[p])['f'] = [((self.state[p])['f'])[i]
+                                        for i in orderedIndices]
+                (self.state[p])['r'] = [((self.state[p])['r'])[i]
+                                        for i in orderedIndices]
+                (self.state[p])['r0'] = [((self.state[p])['r0'])[i]
+                                         for i in orderedIndices]
+                (self.state[p])['a'] = [((self.state[p])['a'])[i]
+                                        for i in orderedIndices]
 
-                        # Update frequency and velocity
-                        bat['f'] = self.fmin + (self.fmax-self.fmin) * beta
-                        bat['v'] += bat['v'] + (bat['x']-bats[fitnessSortedIndexes[0]]['x']) * bat['f']
+                # loop over all of the bats in the population and update their positions and get their new fitnesses
+                newFitnesses = np.zeros(self.populationSize)
+                for bat, id in enumerate((self.state[p])['id']):
+                    t = threading.Thread(target=self.updateBats, args=(
+                        copy.deepcopy(self.model), index, bat, (self.state[p])['f'], (self.state[p])['v'], (self.state[p])['x'], (self.state[p])['r'], (self.state[p])['a'], ((self.state[p])['x'])[0], currentFitness, newFitnesses))
+                    threads.append(t)
+                    t.start()
+                for t in threads:
+                    t.join()
 
-                        # Calculate new potential solution
-                        bat['xnew'] = bat['x'] + bat['v']
+                # Sort each bat's index by its fitness
+                orderedIndices = np.argsort(newFitnesses)
+                currentFitness = np.sort(newFitnesses)
+                (self.state[p])['id'] = [((self.state[p])['id'])[i]
+                                         for i in orderedIndices]
+                (self.state[p])['x'] = [((self.state[p])['x'])[i]
+                                        for i in orderedIndices]
+                (self.state[p])['v'] = [((self.state[p])['v'])[i]
+                                        for i in orderedIndices]
+                (self.state[p])['f'] = [((self.state[p])['f'])[i]
+                                        for i in orderedIndices]
+                (self.state[p])['r'] = [((self.state[p])['r'])[i]
+                                        for i in orderedIndices]
+                (self.state[p])['r0'] = [((self.state[p])['r0'])[i]
+                                         for i in orderedIndices]
+                (self.state[p])['a'] = [((self.state[p])['a'])[i]
+                                        for i in orderedIndices]
 
-                        # Chance to move towards top 3 bats 
-                        if rand > bat['r']:
-                            # Get random bat from top 3 bats
-                            randomBatNumber = int(np.random.uniform(0, 2))
-                            randomSolution = bats[randomBatNumber]
-                            # Perform local search around the chosen bat
-                            bat['xnew'] = randomSolution['x'] + np.random.uniform(-1,1, size=list(np.shape(p.data)))*bat['a']
+                if self.debug == True:
+                    print("=================NEW FITNESSES=================")
+                    print(newFitnesses)
+                    print(
+                        "=================NEW POPULATION POSITIONS=================")
+                    print((self.state[p])['x'])
+                    print(
+                        "=================NEW POPULATION VELOCITIES=================")
+                    print((self.state[p])['v'])
+                    print(
+                        "=================NEW POPULATION FREQUENCIES=================")
+                    print((self.state[p])['f'])
+                    print(
+                        "=================NEW POPULATION PULES RATES=================")
+                    print((self.state[p])['r'])
 
-                        # Check if new solution is within bounds
-                        bat['xnew'] = np.clip(bat['xnew'], -1, 1)
-                        
-                        # Calculate new fitness
-                        newFitnessArray = np.zeros(1)
-                        self.calculateFitness(self.model, 0, index, torch.tensor(bat['xnew']), newFitnessArray)
+                bestBat = ((self.state[p])['id'])[0]
+                bestWeights = ((self.state[p])['x'])[0]
 
-                        # Accept new solution
-                        if rand < bat['a'] and newFitnessArray[0] < currentFitness[fitnessSortedIndexes[0]]:
-                            bat['x'] = bat['xnew']
+                if self.debug == True:
+                    print(
+                        "=================BEST=================")
+                    print("id: ", bestBat)
+                    print(bestWeights)
 
-                        # Update loudness
-                            bat['a'] *= self.alpha
+            # Update weights to best bat position
+            self.setWeights(self.model, index, bestWeights)
 
-                        # Minimum loudness set to Amin
-                            if bat['a'] < self.Amin:
-                                bat['a'] = self.Amin
-                        
-                        # Update pulse rate
-                            bat['r'] = bat['r0'] * (1- np.exp(-self.gamma*t))
-                        
-                        # Calculate fitness and store it in current fitness array
-                        self.calculateFitness(self.model, bat['id'], index, torch.tensor(bat['x']), currentFitness)
-                    fitnessSortedIndexes = np.argsort(currentFitness)
-                # Find bat with best fitness
-                fitnessSortedIndexes = np.argsort(currentFitness)
-                bestBat = bats[fitnessSortedIndexes[0]]
-                # Update weights to best bat position
-                self.setWeights(index, torch.tensor(bestBat['x']))
+    def calculateFitness(self, model, bat, index, weights, currentFitness):
+        """
+        Calculates the fitness of a wolf
 
+        Args:
+            model (pytorch.module): the model to calculate the fitness on
+            wolf (int): the index of the wolf to test
+            index (int): the index of the group the at the method is in (weights/biases)
+            weights (numpy.ndarray): the weights of this wolf to calculate the fitness of
+            currentFitness (numpy.ndarray): the array to store the fitness in
+        """
+        model = model.to(self.device)
 
-    def calculateFitness(self, model, individual, index, weights, currentFitness):
-        """function to calculate the fitness of an individual for the given index parameter (weights or biases) then save the loss in currentFitness"""
-        # assign these weights to the last layer
-        self.setWeights(index, weights)
-        # calculate the individuals fitness
-        # set the model in evaluation mode
+        # Set the weight in the final layer to the solution carried by this individual
+        self.setWeights(model, index, weights)
+
+        # Compute the output
+        self.lossFn = self.lossFn.to(self.device)
         model.eval()
-        x = model.input
-        y = model.y
+        x = (model.input).to(self.device)
+        y = (model.y).to(self.device)
+
         y_pred = model(x)
+
+        # Calculate loss
         loss = self.lossFn(y_pred, y)
         loss = loss.cpu().detach().item()
-        if loss == 0:
-            loss = 0.000001
-        currentFitness[individual] = loss
-    
-    
-    def setWeights(self, index, weights):
+        currentFitness[bat] = loss
+
+    def setWeights(self, model, index, weights):
+        """
+        Sets the weights in a specific group
+
+        Args:
+            model (pytorch.module): the model to set the weights on
+            index (int): the index of the group
+            weights (numpy.ndarray): weights to set to
+        """
+        weights = torch.tensor(weights)
         with torch.no_grad():
             count = 0
-            for param in self.model.last_layer.parameters():
+            for param in model.last_layer.parameters():
                 if (count == index):
                     param.copy_(nn.Parameter(weights))
                     break
                 count += 1
+
+    def updateBats(self, model, index, bat, f, v, x, r, a, best, currentFitnesses, newFitnesses):
+        """
+        function to update the position of a bat
+
+        Args:
+            model (pytorch.module): the model to calculate the fitness on
+            index (int): the index of the group the at the method is in (weights/biases)
+            bat (int): the index of the bat we are updating
+            f (numpy.ndarray): the array of bat frequencies
+            v (numpy.ndarray): the array of bat velocities
+            x (numpy.ndarray): the array of bat positions
+            r (numpy.ndarray): the array of bat pulse rates
+            a (numpy.ndarray): the array of bat loudnesses
+            best (numpy.ndarray): the position of the best bat
+            currentFitnesses (numpy.ndarray): an array of the current fitnesses of the bats
+            newFitnesses (numpy.ndarray): an array to put the new fitness of the bat into
+        """
+        beta = np.random.uniform(0, 1, np.shape(f[bat]))
+        newV = v[bat] + ((x[bat] - best) * f[bat])
+        newX = x[bat] + newV
+        f[bat] = self.fmin + ((self.fmax - self.fmin) * beta)
+        v[bat] = newV
+
+        if np.random.rand() < r[bat]:
+            newX = best + (0.01 * np.random.randn(*list(np.shape(newX))))
+
+        # calculate the fitness of the bats new position
+        self.calculateFitness(model, bat, index, newX, newFitnesses)
+
+        if ((newFitnesses[bat] < currentFitnesses[bat]) & (np.random.rand() < a[bat])):
+            x[bat] = newX
+        else:
+            newFitnesses[bat] = currentFitnesses[bat]
