@@ -11,6 +11,7 @@ from torch.utils.data import random_split
 from sklearn.metrics import classification_report
 from cnn import *
 from batOptimizer import batOptimizer
+from rcgaOptimizer import RCGAOptimizer
 from torchvision import transforms
 import matplotlib
 import time
@@ -30,8 +31,8 @@ MODEL_WITH_ALGORITHM_FILE = "cnnWithAlgorithm"
 # the name of the file storing the training history for the model after using our optimization algorithm
 MODEL_WITH_ALGORITHM_TRAIN_HISTORY_FILE = "cnnWithAlgorithmHistory"
 # define training hyperparameters
-BATCH_SIZE = 16
-EPOCHS = 10
+BATCH_SIZE = 64
+EPOCHS = 9
 # define the train and val splits
 TRAIN_SPLIT = 0.75
 VAL_SPLIT = 1 - TRAIN_SPLIT
@@ -73,6 +74,7 @@ def trainModel(device, model, opt, lossFn, trainingDataLoader, valDataLoader, ep
     # calculate steps per epoch for training and validation set
     trainSteps = len(trainingDataLoader.dataset) // batchSize
     valSteps = len(valDataLoader.dataset) // batchSize
+    print(trainSteps)
     # initialize a dictionary to store training history
     H = {
         "train_loss": [],
@@ -230,17 +232,63 @@ def modelResNet(device, trainingData):
     lossFn = nn.CrossEntropyLoss()
     return model, opt, lossFn
 
+# function to build a CNN
+# inputs:
+# device - the device to train the model on
+# trainingData - the data that will be used to train the model
+# channels - the number of channels the images have
+#
+# returns: a CNN model, the optimizer and the loss function
+def modelLeNet(device, trainingData):
+    print("making a LeNet")
+    print("device: ", device)
+    model = LeNet().to(device)
+    # initialize our optimizer and loss function
+    opt = Adam(model.parameters(), lr=0.001)
+    lossFn = nn.CrossEntropyLoss()
+    return model, opt, lossFn
+
+# function to build a CNN
+# inputs:
+# device - the device to train the model on
+# trainingData - the data that will be used to train the model
+# channels - the number of channels the images have
+#
+# returns: a CNN model, the optimizer and the loss function
+def modelPNASNet(device, trainingData):
+    print("making a PNASNet")
+    print("device: ", device)
+    model = PNASNetB().to(device)
+    # initialize our optimizer and loss function
+    opt = Adam(model.parameters(), lr=0.001)
+    lossFn = nn.CrossEntropyLoss()
+    return model, opt, lossFn
+
+# function to build a CNN
+# inputs:
+# device - the device to train the model on
+# trainingData - the data that will be used to train the model
+# channels - the number of channels the images have
+#
+# returns: a CNN model, the optimizer and the loss function
+def modelEfficientNet(device, trainingData):
+    print("making an EfficientNet")
+    print("device: ", device)
+    model = EfficientNetB0().to(device)
+    # initialize our optimizer and loss function
+    opt = Adam(model.parameters(), lr=0.001)
+    lossFn = nn.CrossEntropyLoss()
+    return model, opt, lossFn
+
 # main method
 def main():
     print("getting training and testing data")
     trainingData = CIFAR10(root="dataset", train=True, download=True,
                            transform = transforms.Compose([
-    transforms.Resize((224,224)),
     transforms.ToTensor(),           # Convert images to PyTorch tensors
 ]))
     testingData = CIFAR10(root="dataset", train=False, download=True,
                           transform = transforms.Compose([
-    transforms.Resize((224,224)),
     transforms.ToTensor(),           # Convert images to PyTorch tensors
 ]))
     # calculate the train/validation split
@@ -261,20 +309,66 @@ def main():
     # set the device we will be using to train the model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # make a resnet model
-    resnet, opt, lossFn = modelResNet(device, trainingData)
+    # make an efficientnet model
+    #efficientnet, opt, lossFn = modelEfficientNet(device, trainingData)
+
+    # train the efficientnet model
+    #efficientnet, H_efficientnet = trainModel(device, efficientnet, opt, lossFn, trainingDataLoader, valDataLoader, EPOCHS, BATCH_SIZE)
+
+    # reset the last layer of the efficientnet model
+    #efficientnet.reInitializeFinalLayer()
+
+    # save efficientnet model to disk
+    #saveModel(efficientnet, H_efficientnet, 'efficientnetModel', 'efficientnetModelHistory')
+
+    # load efficientnet model
+    #efficientnet, H_efficientnet = loadModel('efficientnetModel', 'efficientnetModelHistory')
+
+
+    # make a pnasnet model
+    #pnasnet, opt, lossFn = modelPNASNet(device, trainingData)
 
     # train the resnet model
-    resnet, H_resnet = trainModel(device, resnet, opt, lossFn, trainingDataLoader, valDataLoader, EPOCHS, BATCH_SIZE)
+    #pnasnet, H_pnasnet = trainModel(device, pnasnet, opt, lossFn, trainingDataLoader, valDataLoader, EPOCHS, BATCH_SIZE)
 
     # reset the last layer of the resnet model
-    resnet.reInitializeFinalLayer()
+    #pnasnet.reInitializeFinalLayer()
 
     # save resnet model to disk
-    saveModel(resnet, H_resnet, 'resnetModel', 'resnetModelHistory')
+    #saveModel(pnasnet, H_pnasnet, 'pnasnetModel', 'pnasnetModelHistory')
+
+    # load pnasnet model
+    #pnasnet, H_pnasnet = loadModel('pnasnetModel', 'pnasnetModelHistory')
+
+    # make a resnet model
+    #resnet, opt, lossFn = modelResNet(device, trainingData)
+
+    # train the resnet model
+    #resnet, H_resnet = trainModel(device, resnet, opt, lossFn, trainingDataLoader, valDataLoader, EPOCHS, BATCH_SIZE)
+
+    # reset the last layer of the resnet model
+    #resnet.reInitializeFinalLayer()
+
+    # save resnet model to disk
+    #saveModel(resnet, H_resnet, 'resnetModel', 'resnetModelHistory')
 
     # load resnet model
-    resnet, H_resnet = loadModel('resnetModel', 'resnetModelHistory')
+    #resnet, H_resnet = loadModel('resnetModel', 'resnetModelHistory')
+
+    # make a lenet model
+    #lenet, opt, lossFn = modelLeNet(device, trainingData)
+
+    # train the resnet model
+    #lenet, H_lenet = trainModel(device, lenet, opt, lossFn, trainingDataLoader, valDataLoader, EPOCHS, BATCH_SIZE)
+
+    # reset the last layer of the resnet model
+    #lenet.reInitializeFinalLayer()
+
+    # save resnet model to disk
+    #saveModel(lenet, H_lenet, 'lenetModel', 'lenetModelHistory')
+
+    # load the lenet model from disk
+    #lenet, H_lenet = loadModel('lenetModel', 'lenetModelHistory')
 
     # make a convolutional network
     #cnn, opt, lossFn = modelCNN(device, trainingData, IMAGE_CHANNELS)
@@ -289,12 +383,12 @@ def main():
     # save the CNN model to disk
     #saveModel(cnn, H, CNN_MODEL_FILE, CNN_MODEL_TRAIN_HISTORY_FILE)
     # load the CNN model from disk
-    #cnn, H_cnn = loadModel(CNN_MODEL_FILE, CNN_MODEL_TRAIN_HISTORY_FILE)
+    cnn, H_cnn = loadModel(CNN_MODEL_FILE, CNN_MODEL_TRAIN_HISTORY_FILE)
 
     # evaluate the model before using the optimization algorithm
-    print("=====================================================\nEvaluating resnet model before using optimization algorithms\n=====================================================")
-    evaluateModel(device, resnet, testDataLoader, testingData,
-                  H_resnet, "originalResnetEvaluationPlot.png")
+    print("=====================================================\nEvaluating cnn model before using optimization algorithms\n=====================================================")
+    evaluateModel(device, cnn, testDataLoader, testingData,
+                  H_cnn, "originalCNNEvaluationPlot.png")
 
     # train the model using the genetic optimization algorithm
     #opt = GeneticOptimizer(device, cnn, lossFn=lossFn, pop=2, elites=1)
@@ -322,16 +416,16 @@ def main():
 
     start = time.time()
     lossFn = nn.CrossEntropyLoss()
-    opt = batOptimizer(device, resnet, lossFn, populationSize=10, max_iters=20)
-    resnet, H_resnet = trainModel(device, resnet, opt, lossFn, trainingDataLoader,
+    opt = batOptimizer(device, cnn, lossFn)
+    cnn, H_cnn = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
                         valDataLoader, EPOCHS, BATCH_SIZE)
     end = time.time()
     print(f"Trained in {round(end-start, 2)}s")
 
     # evaluate the model after using the optimization algorithm
-    print("=====================================================\nEvaluating resnet model after using bat algorithm\n=====================================================")
-    evaluateModel(device, resnet, testDataLoader, testingData,
-                  H_resnet, "originalResNetBatAlgorithmEvaluationPlot.png")
+    print("=====================================================\nEvaluating lenet model after using bat algorithm\n=====================================================")
+    #evaluateModel(device, pnasnet, testDataLoader, testingData,
+    #              H_pnasnet, "originalPNASNetRCGAAlgorithmEvaluationPlot.png")
 
 # run the main method
 main()
