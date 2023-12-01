@@ -11,7 +11,6 @@ from torch.utils.data import random_split
 from sklearn.metrics import classification_report
 from cnn import *
 from batOptimizer import batOptimizer
-from rcgaOptimizer import RCGAOptimizer
 from torchvision import transforms
 import matplotlib
 import time
@@ -298,7 +297,6 @@ def modelEfficientNet(device, trainingData):
 def main():
     print("getting training and testing data")
     trainingData = CIFAR10(root="dataset", train=True, download=True,
-<<<<<<< HEAD
                            transform = transforms.Compose([
     transforms.ToTensor(),           # Convert images to PyTorch tensors
 ]))
@@ -306,17 +304,6 @@ def main():
                           transform = transforms.Compose([
     transforms.ToTensor(),           # Convert images to PyTorch tensors
 ]))
-=======
-                           transform=transforms.Compose([
-                               transforms.Resize((224, 224)),
-                               transforms.ToTensor(),           # Convert images to PyTorch tensors
-                           ]))
-    testingData = CIFAR10(root="dataset", train=False, download=True,
-                          transform=transforms.Compose([
-                              transforms.Resize((224, 224)),
-                              transforms.ToTensor(),           # Convert images to PyTorch tensors
-                          ]))
->>>>>>> e7225f52565fe752fa81b699a668532ad8588525
     # calculate the train/validation split
     print("generating the train/validation split...")
     numTrainSamples = int(len(trainingData) * TRAIN_SPLIT)
@@ -355,12 +342,7 @@ def main():
     #pnasnet, opt, lossFn = modelPNASNet(device, trainingData)
 
     # train the resnet model
-<<<<<<< HEAD
     #pnasnet, H_pnasnet = trainModel(device, pnasnet, opt, lossFn, trainingDataLoader, valDataLoader, EPOCHS, BATCH_SIZE)
-=======
-    resnet, H_resnet = trainModel(
-        device, resnet, opt, lossFn, trainingDataLoader, valDataLoader, EPOCHS, BATCH_SIZE)
->>>>>>> e7225f52565fe752fa81b699a668532ad8588525
 
     # reset the last layer of the resnet model
     #pnasnet.reInitializeFinalLayer()
@@ -414,11 +396,8 @@ def main():
     # save the CNN model to disk
     # saveModel(cnn, H, CNN_MODEL_FILE, CNN_MODEL_TRAIN_HISTORY_FILE)
     # load the CNN model from disk
-<<<<<<< HEAD
     cnn, H_cnn = loadModel(CNN_MODEL_FILE, CNN_MODEL_TRAIN_HISTORY_FILE)
-=======
     # cnn, H_cnn = loadModel(CNN_MODEL_FILE, CNN_MODEL_TRAIN_HISTORY_FILE)
->>>>>>> e7225f52565fe752fa81b699a668532ad8588525
 
     # evaluate the model before using the optimization algorithm
     print("=====================================================\nEvaluating cnn model before using optimization algorithms\n=====================================================")
@@ -451,15 +430,9 @@ def main():
 
     start = time.time()
     lossFn = nn.CrossEntropyLoss()
-<<<<<<< HEAD
     opt = batOptimizer(device, cnn, lossFn)
     cnn, H_cnn = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
                         valDataLoader, EPOCHS, BATCH_SIZE)
-=======
-    opt = batOptimizer(device, resnet, lossFn, populationSize=10, max_iters=20)
-    resnet, H_resnet = trainModel(device, resnet, opt, lossFn, trainingDataLoader,
-                                  valDataLoader, EPOCHS, BATCH_SIZE)
->>>>>>> e7225f52565fe752fa81b699a668532ad8588525
     end = time.time()
     print(f"Trained in {round(end-start, 2)}s")
 

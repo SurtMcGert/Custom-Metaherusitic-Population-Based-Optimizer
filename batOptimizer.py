@@ -34,8 +34,10 @@ class batOptimizer(torch.optim.Optimizer):
             # First p is weights, second p is the biases
             for index, p in enumerate(group['params']):
                 self.counter += 1
+                # Call algorithm for weights
                 if self.counter % 2 != 0:
                     bats = BatAlgorithm(500, 100, 20, 0.7, 0.9, 0, 100, -1, 1, self.calculateFitness)
+                # Call algorithm for biases
                 else:
                     bats = BatAlgorithm(10, 100, 20, 0.7, 0.9, 0, 100, -1, 1, self.calculateFitness)
                 best_bat = bats.move_bat()
