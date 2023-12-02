@@ -1,5 +1,6 @@
 import copy
 import math
+import random as rnd
 import threading
 from queue import Queue
 
@@ -92,8 +93,9 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
                 newFitnesses = np.zeros(np.shape(currentFitness))
                 threads = list()  # create a list for storing threads
                 for wolf, position in enumerate(wolves):
+                    random = rnd.randint(0, wolf+1)
                     t = threading.Thread(target=self.calculateWolf, args=(
-                        copy.deepcopy(self.model), index, wolf, position, alpha_pos, beta_pos, delta_pos, np.shape(alpha_pos), updatedWolves, newFitnesses))
+                        copy.deepcopy(self.model), index, wolf, position, alpha_pos, beta_pos, delta_pos, np.shape(alpha_pos), updatedWolves, newFitnesses, random))
                     threads.append(t)
                     t.start()
                 for t in threads:
@@ -173,7 +175,7 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
                     break
                 count += 1
 
-    def calculateWolf(self, model, index, wolf, wolfs_pos, alpha_pos, beta_pos, delta_pos, shape, updatedWolves, newFitnesses):
+    def calculateWolf(self, model, index, wolf, wolfs_pos, alpha_pos, beta_pos, delta_pos, shape, updatedWolves, newFitnesses, random):
         """
         Applies the Grey Wolf algorithm equations to a wolf, updating its position
 
@@ -219,5 +221,5 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
             newFitnesses[wolf] = newLoss
             updatedWolves[wolf] = updated_p
         else:
-            updatedWolves[wolf] = updatedWolves[wolf-1]
-            newFitnesses[wolf] = self.calculateFitness(model, wolf, index, updatedWolves[wolf-1], newFitnesses, True)
+            updatedWolves[wolf] = updatedWolves[random]
+            newFitnesses[wolf] = self.calculateFitness(model, wolf, index, updatedWolves[random], newFitnesses, True)
