@@ -1,3 +1,4 @@
+import copy
 import math
 import threading
 from queue import Queue
@@ -5,7 +6,6 @@ from queue import Queue
 import numpy as np
 import torch
 import torch.nn as nn
-import copy
 
 
 class GreyWolfOptimizer(torch.optim.Optimizer):
@@ -121,7 +121,7 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
                 # Set the weight of the layer to the best solution
                 self.setWeights(self.model, index, wolves[0])
 
-    def calculateFitness(self, model, wolf, index, weights, currentFitness):
+    def calculateFitness(self, model, wolf, index, weights, currentFitness, returnLoss=False):
         """
         Calculates the fitness of a wolf
 
@@ -131,6 +131,9 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
             index (int): the index of the group the at the method is in (weights/biases)
             weights (numpy.ndarray): the weights of this wolf to calculate the fitness of
             currentFitness (numpy.ndarray): the array to store the fitness in
+            returnLoss (boolean): set to True to return the loss instead of setting it in currentFitness
+        Returns:
+            loss (float): the calculated loss value
         """
         model = model.to(self.device)
 
@@ -148,6 +151,8 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
         # Calculate loss
         loss = self.lossFn(y_pred, y)
         loss = loss.cpu().detach().item()
+        if returnLoss == True:
+            return loss
         currentFitness[wolf] = loss
 
     def setWeights(self, model, index, weights):
@@ -208,7 +213,11 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
 
         updated_p = (X1 + X2 + X3) / 3
 
-        # calculate the fitness of the new wolf
-        self.calculateFitness(model, wolf, index, updated_p, newFitnesses)
-
-        updatedWolves[wolf] = updated_p
+        newLoss = self.calculateFitness(model, wolf, index, updated_p, newFitnesses, True)
+        if newLoss < newFitnesses[wolf]:
+            # calculate the fitness of the new wolf
+            newFitnesses[wolf] = newLoss
+            updatedWolves[wolf] = updated_p
+        else:
+            updatedWolves[wolf] = updatedWolves[wolf-1]
+            newFitnesses[wolf] = self.calculateFitness(model, wolf, index, updatedWolves[wolf-1], newFitnesses, True)
