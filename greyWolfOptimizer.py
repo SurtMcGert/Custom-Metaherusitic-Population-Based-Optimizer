@@ -189,6 +189,7 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
             shape (tuple): the shape of the wolfs weights
             updatedWolves (np.ndarray): an array to put the updated wolf position into
             newFitnesses (np.ndarray): an array to put the new fitness of the wolf into
+            random (int): a randomly-generated number. This cannot be generated in the function as the function is threadded
         """
         a = 2 - ((2 / self.numOfIters) * self.currentIter)
         r1 = np.random.uniform(0, 1, size=tuple(shape))
