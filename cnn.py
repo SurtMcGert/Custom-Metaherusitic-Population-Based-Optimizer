@@ -143,9 +143,17 @@ class ResidualBlock(nn.Module):
         self.out_channels = out_channels
 
     def forward(self, x):
+        #print("Shape before conv1:", x[0].shape)
         residual = x
         out = self.conv1(x)
+        #print("Shape after conv1:", out[0].shape)
         out = self.conv2(out)
+        #print("Shape after conv2:", out[0].shape)
+        #print("Residual shape:", residual[0].shape)
+        #if self.downsample is not None:
+        #    print("Downsample:", summary(self.downsample, (x[0].shape[0], x[0].shape[1], x[0].shape[2])))
+        #else:
+        #    print("No downsampling needed.")
         if self.downsample:
             residual = self.downsample(x)
         out += residual
@@ -169,7 +177,8 @@ class ResNet(nn.Module):
         self.layer2 = self._make_layer(block, 256, layers[2], stride=2)
         self.layer3 = self._make_layer(block, 512, layers[3], stride=2)
         self.avgpool = nn.AvgPool2d(7, stride=1)
-        self.last_layer = nn.Linear(512, num_classes)
+        self.linear = nn.Linear(512, 256)
+        self.last_layer = nn.Linear(256, num_classes)
 
     def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
@@ -188,29 +197,33 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
+        #print("====================NEW FORWARD STEP====================")
         self.input = x
         x = self.conv1(x)
         # print(f"Conv1 output size: {x.size()}")
 
         x = self.maxpool(x)
         # print(f"MaxPool output size: {x.size()}")
-
+        #print("==========LAYER 0==========")
         x = self.layer0(x)
         # print(f"Layer0 output size: {x.size()}")
-
+        #print("==========LAYER 1==========")
         x = self.layer1(x)
         # print(f"Layer1 output size: {x.size()}")
-
+        #print("==========LAYER 2==========")
         x = self.layer2(x)
         # print(f"Layer2 output size: {x.size()}")
-
+        #print("==========LAYER 3==========")
         x = self.layer3(x)
         # print(f"Layer3 output size: {x.size()}")
 
         x = self.avgpool(x)
         # print(f"AvgPool output size: {x.size()}")
-
+        
         x = x.view(x.size(0), -1)
+
+        x = self.linear(x)
+        
         output = self.last_layer(x)
         # print(f"Last layer output size: {x.size()}")
 
@@ -218,7 +231,7 @@ class ResNet(nn.Module):
 
     def reInitializeFinalLayer(self):
         # freeze all layers except the last and reset its parameters
-        self.last_layer = nn.Linear(512, 10)
+        self.last_layer = nn.Linear(256, 10)
         for name, layer in self.named_parameters():
             if 'last' in name:
                 layer.requires_grad = True

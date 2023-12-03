@@ -71,6 +71,24 @@ def modelCNN(device, trainingData, channels):
     lossFn = nn.CrossEntropyLoss()
     return model, opt, lossFn
 
+# function to build a ResNet-4
+# inputs:
+# device - the device to train the model on
+# trainingData - the data that will be used to train the model
+# channels - the number of channels the images have
+#
+# returns: a CNN model, the optimizer and the loss function
+def modelResNet(device):
+    print("making a ResNet")
+    print("device: ", device)
+    model = ResNet(
+        ResidualBlock,
+        [1, 1, 1, 1]).to(device)
+    # initialize our optimizer and loss function
+    opt = Adam(model.parameters(), lr=0.001)
+    lossFn = nn.CrossEntropyLoss()
+    return model, opt, lossFn
+
 
 # function to train a given model and save its weights to a file
 # inputs:
@@ -164,11 +182,11 @@ def trainModel(device, model, opt, lossFn, trainingDataLoader, valDataLoader, ep
         print("Val loss: {:.6f}, Val accuracy: {:.4f}".format(
             avgValLoss, valCorrect))
         epochTimeTaken = (epochEnd - epochStart) / 60
-        print("time to train epoch: ", epochTimeTaken, " minuets\n")
+        print("time to train epoch: ", epochTimeTaken, " minutes\n")
 
     trainEnd = time.time()
     trainTimeTaken = (trainEnd - trainStart) / 60
-    print("time to train: ", trainTimeTaken, " minuets\n")
+    print("time to train: ", trainTimeTaken, " minutes\n")
     return model, H
 
 
@@ -286,9 +304,15 @@ def evaluateModel(device, model, testDataLoader, testingData, H, plotName):
 def main():
     print("getting training and testing data")
     trainingData = CIFAR10(root="dataset", train=True, download=True,
-                           transform=ToTensor())
+                          transform=transforms.Compose([
+                            transforms.Resize((224,224)),
+                            transforms.ToTensor(),
+                         ]))
     testingData = CIFAR10(root="dataset", train=False, download=True,
-                          transform=ToTensor())
+                          transform=transforms.Compose([
+                            transforms.Resize((224,224)),
+                            transforms.ToTensor(),
+                         ]))
     # calculate the train/validation split
     print("generating the train/validation split...")
     numTrainSamples = int(len(trainingData) * TRAIN_SPLIT)
@@ -306,11 +330,31 @@ def main():
 
     # set the device we will be using to train the model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    # make a resnet model
+    resnet, opt, lossFn = modelResNet(device)
+
+    # train the resnet model
+    resnet, H_resnet = trainModel(device, resnet, opt, lossFn, trainingDataLoader, valDataLoader, epochs=13, batchSize=128)
+
+    # reset the last layer of the resnet model
+    resnet.reInitializeFinalLayer()
+
+    # save resnet model to disk
+    saveModel(resnet, H_resnet, 'resnetModel', 'resnetModelHistory')
+
+    # load resnet model from disk
+    resnet, H_resnet = loadModel('resnetModel', 'resnetModelHistory')
+    
+    # evaluate the resnet model before using the optimization algorithm
+    print("=====================================================\nEvaluating ResNet model before using optimization algorithms\n=====================================================")
+    evaluateModel(device, resnet, testDataLoader, testingData,
+                  H_resnet, "originalResnet4EvaluationPlot.png")
 
     # make a CNN model
     cnn, opt, lossFn = modelCNN(device, trainingData, IMAGE_CHANNELS)
 
-    # train the resnet model
+    # train the cnn model
     if trainingFileExists(CNN_MODEL_FILE):
         cnn, H = loadModel(
             CNN_MODEL_FILE, CNN_MODEL_TRAIN_HISTORY_FILE)
