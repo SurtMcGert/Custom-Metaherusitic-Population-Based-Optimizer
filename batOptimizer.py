@@ -10,7 +10,7 @@ import random
 
 
 class BatOptimizer(torch.optim.Optimizer):
-    def __init__(self, device, model, lossFn, populationSize=100, Amin=0, gamma=0.9, fmin=0, fmax=100, rmin=0, rmax=1, debug=False):
+    def __init__(self, device, model, lossFn, populationSize=100, Amin=0, fmin=0, fmax=100, rmin=0, rmax=1, debug=False):
         if populationSize < 0:
             raise ValueError("Population size must be positive")
 
@@ -25,7 +25,6 @@ class BatOptimizer(torch.optim.Optimizer):
         self.populationSize = populationSize
         self.model = model
         self.Amin = Amin
-        self.gamma = gamma
         self.fmin = fmin
         self.fmax = fmax
         self.rmin = rmin

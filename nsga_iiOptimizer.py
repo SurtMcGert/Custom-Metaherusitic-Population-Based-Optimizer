@@ -194,3 +194,15 @@ class NSGAIIOptimizer(torch.optim.Optimizer):
             return [random.uniform(a, b) for a, b in zip(low, up)]
         except TypeError:
             return [random.uniform(a, b) for a, b in zip([low] * size, [up] * size)]
+
+    def getPop(self):
+        """
+        function to get the populations
+
+        Returns:
+            output: a list of the populations
+        """
+        output = list()
+        for pop in self.state.values():
+            output.append(pop)
+        return output

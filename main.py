@@ -20,6 +20,7 @@ from torchvision import transforms
 import matplotlib
 import time
 import os
+from deap.benchmarks.tools import diversity, convergence, hypervolume
 matplotlib.use("Agg")
 
 # global variables
@@ -41,7 +42,9 @@ BAT_MODEL_TRAIN_HISTORY_FILE = "batModelHistory"
 WOLF_MODEL_FILE = "wolfModel"
 WOLF_MODEL_TRAIN_HISTORY_FILE = "wolfModelHistory"
 NSGAII_MODEL_FILE = "nsgaiiModel"
-NSGAII_MODEL_TRAIN_HISTORY_FILE = "NSGAIIModelHistory"
+NSGAII_MODEL_TRAIN_HISTORY_FILE = "nsgaiiModelHistory"
+NSGAII_3_EPOCHS_MODEL_FILE = "nsgaii3EpochsModel"
+NSGAII_3_EPOCHS_MODEL_TRAIN_HISTORY_FILE = "nsgaii3EpochsModelHistory"
 # define training hyperparameters
 BATCH_SIZE = 128
 EPOCHS = 9
@@ -65,7 +68,7 @@ def modelCNN(device, trainingData, channels):
         classes=len(trainingData.dataset.classes)).to(device)
     # initialize our optimizer and loss function
     opt = Adam(model.parameters(), lr=0.001)
-    lossFn = nn.NLLLoss()
+    lossFn = nn.CrossEntropyLoss()
     return model, opt, lossFn
 
 
@@ -155,7 +158,7 @@ def trainModel(device, model, opt, lossFn, trainingDataLoader, valDataLoader, ep
         H["val_loss"].append(avgValLoss.cpu().detach().numpy())
         H["val_acc"].append(valCorrect)
         # print the model training and validation information
-        print("[INFO] EPOCH: {}/{}".format(e + 1, EPOCHS))
+        print("[INFO] EPOCH: {}/{}".format(e + 1, epochs))
         print("Train loss: {:.6f}, Train accuracy: {:.4f}".format(
             avgTrainLoss, trainCorrect))
         print("Val loss: {:.6f}, Val accuracy: {:.4f}".format(
@@ -263,7 +266,7 @@ def evaluateModel(device, model, testDataLoader, testingData, H, plotName):
             preds.extend(pred.argmax(axis=1).cpu().numpy())
     # generate a classification report
     print(classification_report(testingData.targets,
-                                np.array(preds), target_names=testingData.classes))
+                                np.array(preds), target_names=testingData.classes, zero_division=0))
 
     # plot the training loss and accuracy
     plt.style.use("ggplot")
@@ -385,7 +388,7 @@ def main():
             BAT_MODEL_FILE, BAT_MODEL_TRAIN_HISTORY_FILE)
     else:
         opt = BatOptimizer(device, cnn, lossFn,
-                           populationSize=10, max_iters=20)
+                           populationSize=40, debug=False)
         cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
                             valDataLoader, EPOCHS, BATCH_SIZE)
         saveModel(cnn, H, BAT_MODEL_FILE, BAT_MODEL_TRAIN_HISTORY_FILE)
@@ -393,7 +396,7 @@ def main():
     # evaluate the model after using the optimization algorithm
     print("=====================================================\nEvaluating model model after using bat algorithm\n=====================================================")
     evaluateModel(device, cnn, testDataLoader, testingData,
-                  H, "originalResNetBatAlgorithmEvaluationPlot.png")
+                  H, "BatAlgorithmEvaluationPlot.png")
     cnn.reInitializeFinalLayer()
 
     # evaluate the model after using the NSGAII optimization algorithm
@@ -402,14 +405,42 @@ def main():
             NSGAII_MODEL_FILE, NSGAII_MODEL_TRAIN_HISTORY_FILE)
     else:
         opt = NSGAIIOptimizer(device, cnn, lossFn, weightLowerBound=-1,
-                              weightUpperBound=1, pop=100, numOfBits=16)
+                              weightUpperBound=1, pop=72, numOfBits=16)
         cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
                             valDataLoader, EPOCHS, BATCH_SIZE)
+        saveModel(cnn, H, NSGAII_MODEL_FILE, NSGAII_MODEL_TRAIN_HISTORY_FILE)
 
     # evaluate the model after using the optimization algorithm
     print("=====================================================\nEvaluating model after using NSGAII algorithm\n=====================================================")
     evaluateModel(device, cnn, testDataLoader, testingData,
                   H, "NSGAIIAlgorithmEvaluationPlot.png")
+    cnn.reInitializeFinalLayer()
+
+    # evaluate the model after using the NSGAII optimization algorithm
+    if trainingFileExists(NSGAII_3_EPOCHS_MODEL_FILE):
+        cnn, H = loadModel(
+            NSGAII_3_EPOCHS_MODEL_FILE, NSGAII_3_EPOCHS_MODEL_TRAIN_HISTORY_FILE)
+        cnn, populations = loadModel(
+            NSGAII_3_EPOCHS_MODEL_FILE, "nsgaii3EpochPopFile")
+    else:
+        opt = NSGAIIOptimizer(device, cnn, lossFn, weightLowerBound=-1,
+                              weightUpperBound=1, pop=240, numOfBits=16)
+        cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
+                            valDataLoader, 3, BATCH_SIZE)
+        populations = opt.getPop()
+        saveModel(cnn, H, NSGAII_3_EPOCHS_MODEL_FILE,
+                  NSGAII_3_EPOCHS_MODEL_TRAIN_HISTORY_FILE)
+        saveModel(cnn, populations, NSGAII_3_EPOCHS_MODEL_FILE,
+                  "nsgaii3EpochPopFile")
+
+    # evaluate the model after using the optimization algorithm
+    print("=====================================================\nEvaluating model after using NSGAII algorithm with 3 epochs\n=====================================================")
+    evaluateModel(device, cnn, testDataLoader, testingData,
+                  H, "NSGAII_3epochs_AlgorithmEvaluationPlot.png")
+    for index, pop in enumerate(populations):
+        print("population: ", index)
+        print("Final population hypervolume is %f" %
+              hypervolume(pop, [11.0, 11.0]))
     cnn.reInitializeFinalLayer()
 
 
