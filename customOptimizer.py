@@ -1,20 +1,22 @@
+import copy
 import math
+import random as rnd
 import threading
 from queue import Queue
 
 import numpy as np
 import torch
 import torch.nn as nn
-import copy
 
 
-class GreyWolfOptimizer(torch.optim.Optimizer):
+class CustomWolfOptimizer(torch.optim.Optimizer):
     def __init__(self, device, model, lossFn, numOfIters, pop=10, debug=False):
         if pop < 3:
             raise ValueError("Population size must be greater than 3")
 
         params = model.last_layer.parameters()
-        super(GreyWolfOptimizer, self).__init__(params, defaults={'pop': pop})
+        super(CustomWolfOptimizer, self).__init__(
+            params, defaults={'pop': pop})
 
         self.pop = pop
         self.lossFn = lossFn
@@ -92,8 +94,9 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
                 newFitnesses = np.zeros(np.shape(currentFitness))
                 threads = list()  # create a list for storing threads
                 for wolf, position in enumerate(wolves):
+                    random = rnd.randint(0, wolf)
                     t = threading.Thread(target=self.calculateWolf, args=(
-                        copy.deepcopy(self.model), index, wolf, position, alpha_pos, beta_pos, delta_pos, np.shape(alpha_pos), updatedWolves, newFitnesses))
+                        copy.deepcopy(self.model), index, wolf, position, alpha_pos, beta_pos, delta_pos, np.shape(alpha_pos), updatedWolves, newFitnesses, wolves[random], currentFitness[random]))
                     threads.append(t)
                     t.start()
                 for t in threads:
@@ -119,9 +122,9 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
                 self.state[p] = wolves
 
                 # Set the weight of the layer to the best solution
-                self.setWeights(index, wolves[0])
+                self.setWeights(self.model, index, wolves[0])
 
-    def calculateFitness(self, model, wolf, index, weights, currentFitness):
+    def calculateFitness(self, model, wolf, index, weights, currentFitness, returnLoss=False):
         """
         Calculates the fitness of a wolf
 
@@ -131,40 +134,49 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
             index (int): the index of the group the at the method is in (weights/biases)
             weights (numpy.ndarray): the weights of this wolf to calculate the fitness of
             currentFitness (numpy.ndarray): the array to store the fitness in
+            returnLoss (boolean): set to True to return the loss instead of setting it in currentFitness
+        Returns:
+            loss (float): the calculated loss value
         """
+        model = model.to(self.device)
+
         # Set the weight in the final layer to the solution carried by this individual
-        self.setWeights(index, weights)
+        self.setWeights(model, index, weights)
 
         # Compute the output
+        self.lossFn = self.lossFn.to(self.device)
         model.eval()
-        x = self.model.input
-        y = self.model.y
+        x = (model.input).to(self.device)
+        y = (model.y).to(self.device)
 
-        y_pred = self.model(x)
+        y_pred = model(x)
 
         # Calculate loss
         loss = self.lossFn(y_pred, y)
         loss = loss.cpu().detach().item()
+        if returnLoss == True:
+            return loss
         currentFitness[wolf] = loss
 
-    def setWeights(self, index, weights):
+    def setWeights(self, model, index, weights):
         """
         Sets the weights in a specific group
 
         Args:
+            model (pytorch.module): the model to set the weights on
             index (int): the index of the group
             weights (numpy.ndarray): weights to set to
         """
         weights = torch.tensor(weights)
         with torch.no_grad():
             count = 0
-            for param in self.model.last_layer.parameters():
+            for param in model.last_layer.parameters():
                 if (count == index):
                     param.copy_(nn.Parameter(weights))
                     break
                 count += 1
 
-    def calculateWolf(self, model, index, wolf, wolfs_pos, alpha_pos, beta_pos, delta_pos, shape, updatedWolves, newFitnesses):
+    def calculateWolf(self, model, index, wolf, wolfs_pos, alpha_pos, beta_pos, delta_pos, shape, updatedWolves, newFitnesses, random):
         """
         Applies the Grey Wolf algorithm equations to a wolf, updating its position
 
@@ -178,6 +190,7 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
             shape (tuple): the shape of the wolfs weights
             updatedWolves (np.ndarray): an array to put the updated wolf position into
             newFitnesses (np.ndarray): an array to put the new fitness of the wolf into
+            random (int): a randomly-generated number. This cannot be generated in the function as the function is threaded
         """
         a = 2 - ((2 / self.numOfIters) * self.currentIter)
         r1 = np.random.uniform(0, 1, size=tuple(shape))
@@ -204,7 +217,15 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
 
         updated_p = (X1 + X2 + X3) / 3
 
-        # calculate the fitness of the new wolf
-        self.calculateFitness(model, wolf, index, updated_p, newFitnesses)
-
-        updatedWolves[wolf] = updated_p
+        newLoss = self.calculateFitness(
+            model, wolf, index, updated_p, newFitnesses, True)
+        if newLoss < newFitnesses[wolf]:
+            # calculate the fitness of the new wolf
+            print("new is better")
+            newFitnesses[wolf] = newLoss
+            updatedWolves[wolf] = updated_p
+        else:
+            print("new is NOT better")
+            updatedWolves[wolf] = updatedWolves[random]
+            newFitnesses[wolf] = self.calculateFitness(
+                model, wolf, index, updatedWolves[random], newFitnesses, True)

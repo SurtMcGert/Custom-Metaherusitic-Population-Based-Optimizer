@@ -16,6 +16,7 @@ from geneticOptimizer import GeneticOptimizer
 from greyWolfOptimizer import GreyWolfOptimizer
 from rcgaOptimizer import RCGAOptimizer
 from nsga_iiOptimizer import NSGAIIOptimizer
+from customOptimizer import CustomWolfOptimizer
 from torchvision import transforms
 import matplotlib
 import time
@@ -31,8 +32,8 @@ NO_OF_CLASSES = 10  # there are 10 classes of images in the dataset
 # the name of the files for storing trained networks and training history
 CNN_MODEL_FILE = "cnnModel"
 CNN_MODEL_TRAIN_HISTORY_FILE = "cnnModelHistory"
-MODEL_WITH_ALGORITHM_FILE = "cnnWithAlgorithm"
-MODEL_WITH_ALGORITHM_TRAIN_HISTORY_FILE = "cnnWithAlgorithmHistory"
+MODEL_WITH_CUSTOM_ALGORITHM_FILE = "cnnWithAlgorithm"
+MODEL_WITH_CUSTOM_ALGORITHM_TRAIN_HISTORY_FILE = "cnnWithAlgorithmHistory"
 BCGA_MODEL_FILE = "bcgaModel"
 BCGA_MODEL_TRAIN_HISTORY_FILE = "bcgaModelHistory"
 RCGA_MODEL_FILE = "rcgaModel"
@@ -472,8 +473,8 @@ def main():
     if trainingFileExists(NSGAII_3_EPOCHS_MODEL_FILE):
         cnn, H = loadModel(
             NSGAII_3_EPOCHS_MODEL_FILE, NSGAII_3_EPOCHS_MODEL_TRAIN_HISTORY_FILE)
-        cnn, populations = loadModel(
-            NSGAII_3_EPOCHS_MODEL_FILE, "nsgaii3EpochPopFile")
+        # cnn, populations = loadModel(
+        #     NSGAII_3_EPOCHS_MODEL_FILE, "nsgaii3EpochPopFile")
     else:
         opt = NSGAIIOptimizer(device, cnn, lossFn, weightLowerBound=-1,
                               weightUpperBound=1, pop=240, numOfBits=16)
@@ -489,17 +490,23 @@ def main():
     print("=====================================================\nEvaluating model after using NSGAII algorithm with 3 epochs\n=====================================================")
     evaluateModel(device, cnn, testDataLoader, testingData,
                   H, "NSGAII_3epochs_AlgorithmEvaluationPlot.png")
-    for index, pop in enumerate(populations):
-        print("population: ", index)
-        print("Final population hypervolume is %f" %
-              hypervolume(pop, [11.0, 11.0]))
+    # for index, pop in enumerate(populations):
+    #     print("population: ", index)
+    #     print("Final population hypervolume is %f" %
+    #           hypervolume(pop, [11.0, 11.0]))
     cnn.reInitializeFinalLayer()
 
-    numOfIters = len(trainingDataLoader) * EPOCHS
-    opt = GreyWolfOptimizer(device, cnn, lossFn,
-                            numOfIters=numOfIters, pop=40, debug=False)
-    cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
-                        valDataLoader, EPOCHS, BATCH_SIZE)
+    if trainingFileExists(MODEL_WITH_CUSTOM_ALGORITHM_FILE):
+        cnn, H = loadModel(
+            MODEL_WITH_CUSTOM_ALGORITHM_FILE, MODEL_WITH_CUSTOM_ALGORITHM_TRAIN_HISTORY_FILE)
+    else:
+        numOfIters = len(trainingDataLoader) * EPOCHS
+        opt = CustomWolfOptimizer(device, cnn, lossFn,
+                                  numOfIters=numOfIters, pop=40, debug=False)
+        cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
+                            valDataLoader, EPOCHS, BATCH_SIZE)
+        saveModel(cnn, populations, MODEL_WITH_CUSTOM_ALGORITHM_FILE,
+                  MODEL_WITH_CUSTOM_ALGORITHM_TRAIN_HISTORY_FILE)
 
     evaluateModel(device, cnn, testDataLoader, testingData,
                   H, "greyWolfAlgorithmEvaluationPlotTEST.png")
