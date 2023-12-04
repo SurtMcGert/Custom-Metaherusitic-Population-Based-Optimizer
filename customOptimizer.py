@@ -96,7 +96,7 @@ class CustomWolfOptimizer(torch.optim.Optimizer):
                 for wolf, position in enumerate(wolves):
                     random = rnd.randint(0, wolf)
                     t = threading.Thread(target=self.calculateWolf, args=(
-                        copy.deepcopy(self.model), index, wolf, position, alpha_pos, beta_pos, delta_pos, np.shape(alpha_pos), updatedWolves, newFitnesses, wolves[random], currentFitness[random]))
+                        copy.deepcopy(self.model), index, wolf, currentFitness[wolf], position, alpha_pos, beta_pos, delta_pos, np.shape(alpha_pos), updatedWolves, newFitnesses, wolves[random], currentFitness[random]))
                     threads.append(t)
                     t.start()
                 for t in threads:
@@ -176,7 +176,7 @@ class CustomWolfOptimizer(torch.optim.Optimizer):
                     break
                 count += 1
 
-    def calculateWolf(self, model, index, wolf, wolfs_pos, alpha_pos, beta_pos, delta_pos, shape, updatedWolves, newFitnesses, random, randomFitness):
+    def calculateWolf(self, model, index, wolf, wolfLoss, wolfs_pos, alpha_pos, beta_pos, delta_pos, shape, updatedWolves, newFitnesses, random, randomFitness):
         """
         Applies the Grey Wolf algorithm equations to a wolf, updating its position
 
@@ -184,13 +184,15 @@ class CustomWolfOptimizer(torch.optim.Optimizer):
             model (pytorch.module): the model to calculate the fitness on
             index (int): the index of the group the at the method is in (weights/biases)
             wolf (int): the index of the wolf we are updating
+            wolfLoss (float): the current fitness of this wolf
             alpha_pos (np.ndarray): the position of the alpha wolf
             beta_pos (np.ndarray): the position of the beta wolf
             delta_pos (np.ndarray): the position of the delta wolf
             shape (tuple): the shape of the wolfs weights
             updatedWolves (np.ndarray): an array to put the updated wolf position into
             newFitnesses (np.ndarray): an array to put the new fitness of the wolf into
-            random (int): a randomly-generated number. This cannot be generated in the function as the function is threaded
+            random (np.ndarray): an arbitrary better wolf
+            randomFitness (float): the fitness of the arbitrarily better wolf
         """
         a = 2 - ((2 / self.numOfIters) * self.currentIter)
         r1 = np.random.uniform(0, 1, size=tuple(shape))
@@ -219,7 +221,7 @@ class CustomWolfOptimizer(torch.optim.Optimizer):
 
         newLoss = self.calculateFitness(
             model, wolf, index, updated_p, newFitnesses, True)
-        if newLoss < newFitnesses[wolf]:
+        if newLoss < wolfLoss:
             # calculate the fitness of the new wolf
             newFitnesses[wolf] = newLoss
             updatedWolves[wolf] = updated_p
