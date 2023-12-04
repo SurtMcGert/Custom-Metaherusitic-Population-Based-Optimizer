@@ -93,7 +93,7 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
                 newFitnesses = np.zeros(np.shape(currentFitness))
                 threads = list()  # create a list for storing threads
                 for wolf, position in enumerate(wolves):
-                    random = rnd.randint(0, wolf)
+                    random = wolves[rnd.randint(0, wolf)]
                     t = threading.Thread(target=self.calculateWolf, args=(
                         copy.deepcopy(self.model), index, wolf, position, alpha_pos, beta_pos, delta_pos, np.shape(alpha_pos), updatedWolves, newFitnesses, random))
                     threads.append(t)
@@ -189,7 +189,7 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
             shape (tuple): the shape of the wolfs weights
             updatedWolves (np.ndarray): an array to put the updated wolf position into
             newFitnesses (np.ndarray): an array to put the new fitness of the wolf into
-            random (int): a randomly-generated number. This cannot be generated in the function as the function is threaded
+            random (np.ndarray): a random wolf
         """
         a = 2 - ((2 / self.numOfIters) * self.currentIter)
         r1 = np.random.uniform(0, 1, size=tuple(shape))
@@ -222,5 +222,5 @@ class GreyWolfOptimizer(torch.optim.Optimizer):
             newFitnesses[wolf] = newLoss
             updatedWolves[wolf] = updated_p
         else:
-            updatedWolves[wolf] = updatedWolves[random]
-            newFitnesses[wolf] = self.calculateFitness(model, wolf, index, updatedWolves[random], newFitnesses, True)
+            updatedWolves[wolf] = random
+            newFitnesses[wolf] = self.calculateFitness(model, wolf, index, random, newFitnesses, True)
