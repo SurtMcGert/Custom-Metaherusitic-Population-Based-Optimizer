@@ -176,7 +176,7 @@ class CustomWolfOptimizer(torch.optim.Optimizer):
                     break
                 count += 1
 
-    def calculateWolf(self, model, index, wolf, wolfs_pos, alpha_pos, beta_pos, delta_pos, shape, updatedWolves, newFitnesses, random):
+    def calculateWolf(self, model, index, wolf, wolfs_pos, alpha_pos, beta_pos, delta_pos, shape, updatedWolves, newFitnesses, random, randomFitness):
         """
         Applies the Grey Wolf algorithm equations to a wolf, updating its position
 
@@ -221,11 +221,8 @@ class CustomWolfOptimizer(torch.optim.Optimizer):
             model, wolf, index, updated_p, newFitnesses, True)
         if newLoss < newFitnesses[wolf]:
             # calculate the fitness of the new wolf
-            print("new is better")
             newFitnesses[wolf] = newLoss
             updatedWolves[wolf] = updated_p
         else:
-            print("new is NOT better")
-            updatedWolves[wolf] = updatedWolves[random]
-            newFitnesses[wolf] = self.calculateFitness(
-                model, wolf, index, updatedWolves[random], newFitnesses, True)
+            updatedWolves[wolf] = random
+            newFitnesses[wolf] = randomFitness
