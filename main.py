@@ -78,6 +78,8 @@ def modelCNN(device, trainingData, channels):
 # channels - the number of channels the images have
 #
 # returns: a CNN model, the optimizer and the loss function
+
+
 def modelResNet(device):
     print("making a ResNet")
     print("device: ", device)
@@ -304,15 +306,15 @@ def evaluateModel(device, model, testDataLoader, testingData, H, plotName):
 def main():
     print("getting training and testing data")
     trainingData = CIFAR10(root="dataset", train=True, download=True,
-                          transform=transforms.Compose([
-                            transforms.Resize((224,224)),
-                            transforms.ToTensor(),
-                         ]))
+                           transform=transforms.Compose([
+                               transforms.Resize((224, 224)),
+                               transforms.ToTensor(),
+                           ]))
     testingData = CIFAR10(root="dataset", train=False, download=True,
                           transform=transforms.Compose([
-                            transforms.Resize((224,224)),
-                            transforms.ToTensor(),
-                         ]))
+                              transforms.Resize((224, 224)),
+                              transforms.ToTensor(),
+                          ]))
     # calculate the train/validation split
     print("generating the train/validation split...")
     numTrainSamples = int(len(trainingData) * TRAIN_SPLIT)
@@ -330,26 +332,26 @@ def main():
 
     # set the device we will be using to train the model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
-    # make a resnet model
-    resnet, opt, lossFn = modelResNet(device)
 
-    # train the resnet model
-    resnet, H_resnet = trainModel(device, resnet, opt, lossFn, trainingDataLoader, valDataLoader, epochs=13, batchSize=128)
+    # # make a resnet model
+    # resnet, opt, lossFn = modelResNet(device)
 
-    # reset the last layer of the resnet model
-    resnet.reInitializeFinalLayer()
+    # # train the resnet model
+    # resnet, H_resnet = trainModel(device, resnet, opt, lossFn, trainingDataLoader, valDataLoader, epochs=13, batchSize=128)
 
-    # save resnet model to disk
-    saveModel(resnet, H_resnet, 'resnetModel', 'resnetModelHistory')
+    # # reset the last layer of the resnet model
+    # resnet.reInitializeFinalLayer()
 
-    # load resnet model from disk
-    resnet, H_resnet = loadModel('resnetModel', 'resnetModelHistory')
-    
+    # # save resnet model to disk
+    # saveModel(resnet, H_resnet, 'resnetModel', 'resnetModelHistory')
+
+    # # load resnet model from disk
+    # resnet, H_resnet = loadModel('resnetModel', 'resnetModelHistory')
+
     # evaluate the resnet model before using the optimization algorithm
-    print("=====================================================\nEvaluating ResNet model before using optimization algorithms\n=====================================================")
-    evaluateModel(device, resnet, testDataLoader, testingData,
-                  H_resnet, "originalResnet4EvaluationPlot.png")
+    # print("=====================================================\nEvaluating ResNet model before using optimization algorithms\n=====================================================")
+    # evaluateModel(device, resnet, testDataLoader, testingData,
+    #               H_resnet, "originalResnet4EvaluationPlot.png")
 
     # make a CNN model
     cnn, opt, lossFn = modelCNN(device, trainingData, IMAGE_CHANNELS)
@@ -486,6 +488,9 @@ def main():
         print("Final population hypervolume is %f" %
               hypervolume(pop, [11.0, 11.0]))
     cnn.reInitializeFinalLayer()
+
+    # make a CNN model
+    resnet, opt, lossFn = modelResNet(device)
 
 
 # run the main method
