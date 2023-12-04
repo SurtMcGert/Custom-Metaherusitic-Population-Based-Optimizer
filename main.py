@@ -305,16 +305,22 @@ def evaluateModel(device, model, testDataLoader, testingData, H, plotName):
 # main method
 def main():
     print("getting training and testing data")
+    # trainingData = CIFAR10(root="dataset", train=True, download=True,
+    #                        transform=transforms.Compose([
+    #                            transforms.Resize((224, 224)),
+    #                            transforms.ToTensor(),
+    #                        ]))
+    # testingData = CIFAR10(root="dataset", train=False, download=True,
+    #                       transform=transforms.Compose([
+    #                           transforms.Resize((224, 224)),
+    #                           transforms.ToTensor(),
+    #                       ]))
+
     trainingData = CIFAR10(root="dataset", train=True, download=True,
-                           transform=transforms.Compose([
-                               transforms.Resize((224, 224)),
-                               transforms.ToTensor(),
-                           ]))
+                           transform=ToTensor())
     testingData = CIFAR10(root="dataset", train=False, download=True,
-                          transform=transforms.Compose([
-                              transforms.Resize((224, 224)),
-                              transforms.ToTensor(),
-                          ]))
+                          transform=ToTensor())
+
     # calculate the train/validation split
     print("generating the train/validation split...")
     numTrainSamples = int(len(trainingData) * TRAIN_SPLIT)
@@ -488,6 +494,15 @@ def main():
         print("Final population hypervolume is %f" %
               hypervolume(pop, [11.0, 11.0]))
     cnn.reInitializeFinalLayer()
+
+    numOfIters = len(trainingDataLoader) * EPOCHS
+    opt = GreyWolfOptimizer(device, cnn, lossFn,
+                            numOfIters=numOfIters, pop=40, debug=False)
+    cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
+                        valDataLoader, EPOCHS, BATCH_SIZE)
+
+    evaluateModel(device, cnn, testDataLoader, testingData,
+                  H, "greyWolfAlgorithmEvaluationPlotTEST.png")
 
     # make a CNN model
     resnet, opt, lossFn = modelResNet(device)
