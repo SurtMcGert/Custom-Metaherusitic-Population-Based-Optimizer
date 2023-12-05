@@ -502,7 +502,7 @@ def main():
     else:
         numOfIters = len(trainingDataLoader) * EPOCHS
         opt = CustomWolfOptimizer(device, cnn, lossFn,
-                                  numOfIters=numOfIters, pop=45, debug=False)
+                                  numOfIters=numOfIters, pop=20, debug=False)
         cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
                             valDataLoader, EPOCHS, BATCH_SIZE)
         saveModel(cnn, H, MODEL_WITH_CUSTOM_ALGORITHM_FILE,

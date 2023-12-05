@@ -221,21 +221,21 @@ class CustomWolfOptimizer(torch.optim.Optimizer):
 
         updated_p = (X1 + X2 + X3) / 3
 
+        # calculate the fitness of the new wolf
         newLoss = self.calculateFitness(
             model, wolf, index, updated_p, newFitnesses, True)
         if newLoss < wolfLoss:
-            # calculate the fitness of the new wolf
+            # if the new position is better accept it
             newFitnesses[wolf] = newLoss
             updatedWolves[wolf] = updated_p
         else:
+            # otherwise take the position of a better wolf, randomize it a bit and then accept that
             bound = 1
-            updatedWolves[wolf] = self.randomRoam(random, -bound, bound)
+            updatedWolves[wolf] = self.randomRoam(random, -bound, bound, a)
             self.calculateFitness(
                 model, wolf, index, updatedWolves[wolf], newFitnesses, False)
-            # updatedWolves[wolf] = random
-            # newFitnesses[wolf] = randomFitness
 
-    def randomRoam(self, wolf, lowerBound, upperBound):
+    def randomRoam(self, wolf, lowerBound, upperBound, a):
         """
         function to mutate an offspring
 
@@ -243,12 +243,14 @@ class CustomWolfOptimizer(torch.optim.Optimizer):
             wolf (numpy.ndarray): the wolf to move
             lowerBound (float): the lower bound for each decision variable
             upperBound (float): the upper bound for each decision variable
+            a (float): the decay value
 
         Returns:
             m (numpy.ndarray): the moved wolf
         """
         m = np.random.uniform(0, 1, size=wolf.shape)
-        nm = 125
+        a = self.a - a
+        nm = (20 + (a * (200 - 20)) / (self.a))
         L = (((2 * m) ** (1/(1 + nm))) - 1)
         R = 1 - ((2 * (1 - m)) ** (1/(1 + nm)))
         m = np.where(m <= 0.5, wolf + (L * (wolf - lowerBound)),
