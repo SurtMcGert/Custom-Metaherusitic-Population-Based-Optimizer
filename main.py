@@ -530,6 +530,7 @@ def main():
     print("=====================================================\nEvaluating Resnet with Adam\n=====================================================")
     evaluateModel(device, resnet, testDataLoader, testingData,
                   H, "ResnetEvaluationPlot.png")
+    cnn.reInitializeFinalLayer()
 
     # train Resnet with custom optimizer
     if trainingFileExists(MODEL_WITH_CUSTOM_ALGORITHM_FILE):
