@@ -308,17 +308,6 @@ def evaluateModel(device, model, testDataLoader, testingData, H, plotName):
 # main method
 def main():
     print("getting training and testing data")
-    # trainingData = CIFAR10(root="dataset", train=True, download=True,
-    #                        transform=transforms.Compose([
-    #                            transforms.Resize((224, 224)),
-    #                            transforms.ToTensor(),
-    #                        ]))
-    # testingData = CIFAR10(root="dataset", train=False, download=True,
-    #                       transform=transforms.Compose([
-    #                           transforms.Resize((224, 224)),
-    #                           transforms.ToTensor(),
-    #                       ]))
-
     trainingData = CIFAR10(root="dataset", train=True, download=True,
                            transform=ToTensor())
     testingData = CIFAR10(root="dataset", train=False, download=True,
@@ -499,6 +488,31 @@ def main():
     cnn.reInitializeFinalLayer()
 
     # TESTING WITH RESNET
+    # load data to correct dimensions
+    trainingData = CIFAR10(root="dataset", train=True, download=True,
+                           transform=transforms.Compose([
+                               transforms.Resize((224, 224)),
+                               transforms.ToTensor(),
+                           ]))
+    testingData = CIFAR10(root="dataset", train=False, download=True,
+                          transform=transforms.Compose([
+                              transforms.Resize((224, 224)),
+                              transforms.ToTensor(),
+                          ]))
+    # calculate the train/validation split
+    print("generating the train/validation split...")
+    numTrainSamples = int(len(trainingData) * TRAIN_SPLIT)
+    numValSamples = int(len(trainingData) * VAL_SPLIT)
+    (trainingData, valData) = random_split(trainingData,
+                                           [numTrainSamples, numValSamples],
+                                           generator=torch.Generator().manual_seed(42))
+    # initialize the train, validation, and test data loaders
+    print("initializing the data loaders...")
+    trainingDataLoader = DataLoader(trainingData, shuffle=True,
+                                    batch_size=BATCH_SIZE)
+    valDataLoader = DataLoader(valData, batch_size=BATCH_SIZE)
+    testDataLoader = DataLoader(testingData, batch_size=BATCH_SIZE)
+
     # make a resnet model
     resnet, opt, lossFn = modelResNet(device)
 
