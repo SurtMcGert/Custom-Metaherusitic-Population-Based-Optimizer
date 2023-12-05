@@ -32,6 +32,8 @@ NO_OF_CLASSES = 10  # there are 10 classes of images in the dataset
 # the name of the files for storing trained networks and training history
 CNN_MODEL_FILE = "cnnModel"
 CNN_MODEL_TRAIN_HISTORY_FILE = "cnnModelHistory"
+RESNET_MODEL_FILE = "resnetModel"
+RESNET_MODEL_TRAIN_HISTORY_FILE = "resnetModelHistory"
 MODEL_WITH_CUSTOM_ALGORITHM_FILE = "cnnWithAlgorithm"
 MODEL_WITH_CUSTOM_ALGORITHM_TRAIN_HISTORY_FILE = "cnnWithAlgorithmHistory"
 BCGA_MODEL_FILE = "bcgaModel"
@@ -496,23 +498,45 @@ def main():
     #           hypervolume(pop, [11.0, 11.0]))
     cnn.reInitializeFinalLayer()
 
+    # TESTING WITH RESNET
+    # make a resnet model
+    resnet, opt, lossFn = modelResNet(device)
+
+    # test with Adam optimizer
+    if trainingFileExists(RESNET_MODEL_FILE):
+        resnet, H = loadModel(
+            RESNET_MODEL_FILE, RESNET_MODEL_TRAIN_HISTORY_FILE)
+    else:
+        resnet, H = trainModel(device, resnet, opt, lossFn, trainingDataLoader,
+                               valDataLoader, EPOCHS, BATCH_SIZE)
+        saveModel(resnet, H, RESNET_MODEL_FILE,
+                  RESNET_MODEL_TRAIN_HISTORY_FILE)
+
+    # evaluate the model after training Resnet with Adam
+    print("=====================================================\nEvaluating Resnet with Adam\n=====================================================")
+    evaluateModel(device, resnet, testDataLoader, testingData,
+                  H, "NSGAII_3epochs_AlgorithmEvaluationPlot.png")
+
+    # train Resnet with custom optimizer
     if trainingFileExists(MODEL_WITH_CUSTOM_ALGORITHM_FILE):
-        cnn, H = loadModel(
+        resnet, H = loadModel(
             MODEL_WITH_CUSTOM_ALGORITHM_FILE, MODEL_WITH_CUSTOM_ALGORITHM_TRAIN_HISTORY_FILE)
     else:
         numOfIters = len(trainingDataLoader) * EPOCHS
-        opt = CustomWolfOptimizer(device, cnn, lossFn,
+        opt = CustomWolfOptimizer(device, resnet, lossFn,
                                   numOfIters=numOfIters, pop=20, debug=False)
-        cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
-                            valDataLoader, EPOCHS, BATCH_SIZE)
-        saveModel(cnn, H, MODEL_WITH_CUSTOM_ALGORITHM_FILE,
+        resnet, H = trainModel(device, resnet, opt, lossFn, trainingDataLoader,
+                               valDataLoader, EPOCHS, BATCH_SIZE)
+        saveModel(resnet, H, MODEL_WITH_CUSTOM_ALGORITHM_FILE,
                   MODEL_WITH_CUSTOM_ALGORITHM_TRAIN_HISTORY_FILE)
 
-    evaluateModel(device, cnn, testDataLoader, testingData,
+    evaluateModel(device, resnet, testDataLoader, testingData,
                   H, "customWolfAlgorithmEvaluationPlot.png")
 
-    # make a CNN model
-    resnet, opt, lossFn = modelResNet(device)
+    # evaluate the model after training Resnet with Adam
+    print("=====================================================\nEvaluating Resnet with custom optimizer\n=====================================================")
+    evaluateModel(device, resnet, testDataLoader, testingData,
+                  H, "NSGAII_3epochs_AlgorithmEvaluationPlot.png")
 
 
 # run the main method
