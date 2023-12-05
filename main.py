@@ -529,7 +529,7 @@ def main():
     # evaluate the model after training Resnet with Adam
     print("=====================================================\nEvaluating Resnet with Adam\n=====================================================")
     evaluateModel(device, resnet, testDataLoader, testingData,
-                  H, "NSGAII_3epochs_AlgorithmEvaluationPlot.png")
+                  H, "ResnetEvaluationPlot.png")
 
     # train Resnet with custom optimizer
     if trainingFileExists(MODEL_WITH_CUSTOM_ALGORITHM_FILE):
@@ -544,13 +544,10 @@ def main():
         saveModel(resnet, H, MODEL_WITH_CUSTOM_ALGORITHM_FILE,
                   MODEL_WITH_CUSTOM_ALGORITHM_TRAIN_HISTORY_FILE)
 
-    evaluateModel(device, resnet, testDataLoader, testingData,
-                  H, "customWolfAlgorithmEvaluationPlot.png")
-
-    # evaluate the model after training Resnet with Adam
+    # evaluate the model after training Resnet with Custom optimizer
     print("=====================================================\nEvaluating Resnet with custom optimizer\n=====================================================")
     evaluateModel(device, resnet, testDataLoader, testingData,
-                  H, "NSGAII_3epochs_AlgorithmEvaluationPlot.png")
+                  H, "customOptimizerEvaluationPlot.png")
 
 
 # run the main method
