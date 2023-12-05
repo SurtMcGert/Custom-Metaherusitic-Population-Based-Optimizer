@@ -25,6 +25,7 @@ class CustomWolfOptimizer(torch.optim.Optimizer):
         self.device = device
         self.model = model
         self.debug = debug
+        self.a = 2
 
         # Get the state of the inputs
         for group in self.param_groups:
@@ -153,6 +154,7 @@ class CustomWolfOptimizer(torch.optim.Optimizer):
 
         # Calculate loss
         loss = self.lossFn(y_pred, y)
+        # add L2 regularization
         loss = loss.cpu().detach().item()
         if returnLoss == True:
             return loss
@@ -194,7 +196,7 @@ class CustomWolfOptimizer(torch.optim.Optimizer):
             random (np.ndarray): an arbitrary better wolf
             randomFitness (float): the fitness of the arbitrarily better wolf
         """
-        a = 2 - ((2 / self.numOfIters) * self.currentIter)
+        a = self.a - ((self.a / self.numOfIters) * self.currentIter)
         r1 = np.random.uniform(0, 1, size=tuple(shape))
         A1 = ((2 * a) * r1) - a
         r1 = np.random.uniform(0, 1, size=tuple(shape))
@@ -226,5 +228,29 @@ class CustomWolfOptimizer(torch.optim.Optimizer):
             newFitnesses[wolf] = newLoss
             updatedWolves[wolf] = updated_p
         else:
-            updatedWolves[wolf] = random
-            newFitnesses[wolf] = randomFitness
+            bound = 1
+            updatedWolves[wolf] = self.randomRoam(random, -bound, bound)
+            self.calculateFitness(
+                model, wolf, index, updatedWolves[wolf], newFitnesses, False)
+            # updatedWolves[wolf] = random
+            # newFitnesses[wolf] = randomFitness
+
+    def randomRoam(self, wolf, lowerBound, upperBound):
+        """
+        function to mutate an offspring
+
+        Args:
+            wolf (numpy.ndarray): the wolf to move
+            lowerBound (float): the lower bound for each decision variable
+            upperBound (float): the upper bound for each decision variable
+
+        Returns:
+            m (numpy.ndarray): the moved wolf
+        """
+        m = np.random.uniform(0, 1, size=wolf.shape)
+        nm = 125
+        L = (((2 * m) ** (1/(1 + nm))) - 1)
+        R = 1 - ((2 * (1 - m)) ** (1/(1 + nm)))
+        m = np.where(m <= 0.5, wolf + (L * (wolf - lowerBound)),
+                     wolf + (R * (upperBound - wolf)))
+        return m

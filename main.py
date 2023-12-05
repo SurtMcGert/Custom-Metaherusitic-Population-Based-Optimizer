@@ -502,14 +502,14 @@ def main():
     else:
         numOfIters = len(trainingDataLoader) * EPOCHS
         opt = CustomWolfOptimizer(device, cnn, lossFn,
-                                  numOfIters=numOfIters, pop=40, debug=False)
+                                  numOfIters=numOfIters, pop=45, debug=False)
         cnn, H = trainModel(device, cnn, opt, lossFn, trainingDataLoader,
                             valDataLoader, EPOCHS, BATCH_SIZE)
-        saveModel(cnn, populations, MODEL_WITH_CUSTOM_ALGORITHM_FILE,
+        saveModel(cnn, H, MODEL_WITH_CUSTOM_ALGORITHM_FILE,
                   MODEL_WITH_CUSTOM_ALGORITHM_TRAIN_HISTORY_FILE)
 
     evaluateModel(device, cnn, testDataLoader, testingData,
-                  H, "greyWolfAlgorithmEvaluationPlotTEST.png")
+                  H, "customWolfAlgorithmEvaluationPlot.png")
 
     # make a CNN model
     resnet, opt, lossFn = modelResNet(device)
