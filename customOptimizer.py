@@ -153,7 +153,7 @@ class CustomWolfOptimizer(torch.optim.Optimizer):
         y_pred = model(x)
 
         # Calculate loss
-        loss = self.lossFn(y_pred, y)
+        loss = (self.lossFn(y_pred, y)) + (0.5 * np.sum(weights ** 2))
         # add L2 regularization
         loss = loss.cpu().detach().item()
         if returnLoss == True:
