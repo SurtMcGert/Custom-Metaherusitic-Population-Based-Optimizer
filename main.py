@@ -337,9 +337,6 @@ def main():
     # # train the resnet model
     # resnet, H_resnet = trainModel(device, resnet, opt, lossFn, trainingDataLoader, valDataLoader, epochs=13, batchSize=128)
 
-    # # reset the last layer of the resnet model
-    # resnet.reInitializeFinalLayer()
-
     # # save resnet model to disk
     # saveModel(resnet, H_resnet, 'resnetModel', 'resnetModelHistory')
 
@@ -349,7 +346,11 @@ def main():
     # evaluate the resnet model before using the optimization algorithm
     # print("=====================================================\nEvaluating ResNet model before using optimization algorithms\n=====================================================")
     # evaluateModel(device, resnet, testDataLoader, testingData,
-    #               H_resnet, "originalResnet4EvaluationPlot.png")
+    #               H_resnet, "finalResnet10EvaluationPlot.png")
+
+    # # reset the last layer of the resnet model
+    # resnet.reInitializeFinalLayer()
+
 
     # make a CNN model
     cnn, opt, lossFn = modelCNN(device, trainingData, IMAGE_CHANNELS)
