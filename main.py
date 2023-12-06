@@ -527,7 +527,7 @@ def main():
             RESNET_MODEL_FILE, RESNET_MODEL_TRAIN_HISTORY_FILE)
     else:
         resnet, H = trainModel(device, resnet, opt, lossFn, trainingDataLoader,
-                               valDataLoader, 13, BATCH_SIZE)
+                               valDataLoader, EPOCHS, BATCH_SIZE)
         saveModel(resnet, H, RESNET_MODEL_FILE,
                   RESNET_MODEL_TRAIN_HISTORY_FILE)
 
@@ -537,16 +537,16 @@ def main():
                   H, "ResnetEvaluationPlot.png")
     resnet.reInitializeFinalLayer()
 
-    # train Resnet with custom optimizer
+    # # train Resnet with custom optimizer
     if trainingFileExists(MODEL_WITH_CUSTOM_ALGORITHM_FILE):
         resnet, H = loadModel(
             MODEL_WITH_CUSTOM_ALGORITHM_FILE, MODEL_WITH_CUSTOM_ALGORITHM_TRAIN_HISTORY_FILE)
     else:
-        numOfIters = len(trainingDataLoader) * 13
+        numOfIters = len(trainingDataLoader) * EPOCHS
         opt = CustomWolfOptimizer(device, resnet, lossFn,
                                   numOfIters=numOfIters, pop=20, debug=False)
         resnet, H = trainModel(device, resnet, opt, lossFn, trainingDataLoader,
-                               valDataLoader, 13, BATCH_SIZE)
+                               valDataLoader, EPOCHS, BATCH_SIZE)
         saveModel(resnet, H, MODEL_WITH_CUSTOM_ALGORITHM_FILE,
                   MODEL_WITH_CUSTOM_ALGORITHM_TRAIN_HISTORY_FILE)
 
@@ -573,7 +573,7 @@ def main():
     print("=====================================================\nEvaluating model after using real coded genetic algorithm\n=====================================================")
     evaluateModel(device, resnet, testDataLoader, testingData,
                   H, "RCGAOnResnetEvaluationPlot.png")
-    cnn.reInitializeFinalLayer()
+    resnet.reInitializeFinalLayer()
 
     # train NSGA-II on resent
     print("NSGA-II on resnet")
@@ -583,8 +583,10 @@ def main():
         resnet, populations = loadModel(
             NSGAII_3_EPOCHS_MODEL_FILE, "nsgaiiResnetPopFile")
     else:
+        opt = NSGAIIOptimizer(device, resnet, lossFn, weightLowerBound=-1,
+                              weightUpperBound=1, pop=10, numOfBits=8)
         resnet, H = trainModel(device, resnet, opt, lossFn, trainingDataLoader,
-                               valDataLoader, 13, BATCH_SIZE)
+                               valDataLoader, EPOCHS, 8)
         saveModel(resnet, H, NSGAII_RESNET_MODEL_FILE,
                   NSGAII_RESNET_MODEL_HISTORY_FILE)
         saveModel(resnet, populations, NSGAII_RESNET_MODEL_FILE,
