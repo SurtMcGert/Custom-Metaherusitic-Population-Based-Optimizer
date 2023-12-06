@@ -40,6 +40,8 @@ BCGA_MODEL_FILE = "bcgaModel"
 BCGA_MODEL_TRAIN_HISTORY_FILE = "bcgaModelHistory"
 RCGA_MODEL_FILE = "rcgaModel"
 RCGA_MODEL_TRAIN_HISTORY_FILE = "rcgaModelHistory"
+RCGA_RESNET_MODEL_FILE = "rcgaResnetModel"
+RCGA_RESNET_MODEL_TRAIN_HISTORY_FILE = "rcgaResnetModelHistory"
 BAT_MODEL_FILE = "batModel"
 BAT_MODEL_TRAIN_HISTORY_FILE = "batModelHistory"
 WOLF_MODEL_FILE = "wolfModel"
@@ -440,7 +442,7 @@ def main():
         saveModel(cnn, H, BAT_MODEL_FILE, BAT_MODEL_TRAIN_HISTORY_FILE)
 
     # evaluate the model after using the optimization algorithm
-    print("=====================================================\nEvaluating model model after using bat algorithm\n=====================================================")
+    print("=====================================================\nEvaluating model after using bat algorithm\n=====================================================")
     evaluateModel(device, cnn, testDataLoader, testingData,
                   H, "BatAlgorithmEvaluationPlot.png")
     cnn.reInitializeFinalLayer()
@@ -519,6 +521,7 @@ def main():
     resnet, opt, lossFn = modelResNet(device)
 
     # test with Adam optimizer
+    print("resnet with Adam")
     if trainingFileExists(RESNET_MODEL_FILE):
         resnet, H = loadModel(
             RESNET_MODEL_FILE, RESNET_MODEL_TRAIN_HISTORY_FILE)
@@ -553,7 +556,27 @@ def main():
                   H, "customOptimizerEvaluationPlot.png")
     resnet.reInitializeFinalLayer()
 
+    # train the model using the real coded genetic optimization algorithm
+    print("RCGA on Resnet")
+    opt = RCGAOptimizer(device, resnet, lossFn=lossFn,
+                        weightLowerBound=-1, weightUpperBound=1, pop=20, elites=10)
+    if trainingFileExists(RCGA_RESNET_MODEL_FILE):
+        resnet, H = loadModel(
+            RCGA_RESNET_MODEL_FILE, RCGA_RESNET_MODEL_TRAIN_HISTORY_FILE)
+    else:
+        resnet, H = trainModel(device, resnet, opt, lossFn, trainingDataLoader,
+                               valDataLoader, EPOCHS, BATCH_SIZE)
+        saveModel(resnet, H, RCGA_RESNET_MODEL_FILE,
+                  RCGA_RESNET_MODEL_TRAIN_HISTORY_FILE)
+
+    # evaluate the model after using the optimization algorithm
+    print("=====================================================\nEvaluating model after using real coded genetic algorithm\n=====================================================")
+    evaluateModel(device, resnet, testDataLoader, testingData,
+                  H, "RCGAOnResnetEvaluationPlot.png")
+    cnn.reInitializeFinalLayer()
+
     # train NSGA-II on resent
+    print("NSGA-II on resnet")
     if trainingFileExists(NSGAII_RESNET_MODEL_FILE):
         resnet, H = loadModel(
             NSGAII_RESNET_MODEL_FILE, NSGAII_RESNET_MODEL_HISTORY_FILE)
