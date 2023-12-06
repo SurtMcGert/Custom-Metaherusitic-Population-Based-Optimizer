@@ -48,6 +48,8 @@ NSGAII_MODEL_FILE = "nsgaiiModel"
 NSGAII_MODEL_TRAIN_HISTORY_FILE = "nsgaiiModelHistory"
 NSGAII_3_EPOCHS_MODEL_FILE = "nsgaii3EpochsModel"
 NSGAII_3_EPOCHS_MODEL_TRAIN_HISTORY_FILE = "nsgaii3EpochsModelHistory"
+NSGAII_RESNET_MODEL_FILE = "nsgaiiResnetModel"
+NSGAII_RESNET_MODEL_HISTORY_FILE = "nsgaiiResnetModelHistory"
 # define training hyperparameters
 BATCH_SIZE = 128
 EPOCHS = 9
@@ -351,7 +353,6 @@ def main():
     # # reset the last layer of the resnet model
     # resnet.reInitializeFinalLayer()
 
-
     # make a CNN model
     cnn, opt, lossFn = modelCNN(device, trainingData, IMAGE_CHANNELS)
 
@@ -523,7 +524,7 @@ def main():
             RESNET_MODEL_FILE, RESNET_MODEL_TRAIN_HISTORY_FILE)
     else:
         resnet, H = trainModel(device, resnet, opt, lossFn, trainingDataLoader,
-                               valDataLoader, EPOCHS, BATCH_SIZE)
+                               valDataLoader, 13, BATCH_SIZE)
         saveModel(resnet, H, RESNET_MODEL_FILE,
                   RESNET_MODEL_TRAIN_HISTORY_FILE)
 
@@ -531,18 +532,18 @@ def main():
     print("=====================================================\nEvaluating Resnet with Adam\n=====================================================")
     evaluateModel(device, resnet, testDataLoader, testingData,
                   H, "ResnetEvaluationPlot.png")
-    cnn.reInitializeFinalLayer()
+    resnet.reInitializeFinalLayer()
 
     # train Resnet with custom optimizer
     if trainingFileExists(MODEL_WITH_CUSTOM_ALGORITHM_FILE):
         resnet, H = loadModel(
             MODEL_WITH_CUSTOM_ALGORITHM_FILE, MODEL_WITH_CUSTOM_ALGORITHM_TRAIN_HISTORY_FILE)
     else:
-        numOfIters = len(trainingDataLoader) * EPOCHS
+        numOfIters = len(trainingDataLoader) * 13
         opt = CustomWolfOptimizer(device, resnet, lossFn,
                                   numOfIters=numOfIters, pop=20, debug=False)
         resnet, H = trainModel(device, resnet, opt, lossFn, trainingDataLoader,
-                               valDataLoader, EPOCHS, BATCH_SIZE)
+                               valDataLoader, 13, BATCH_SIZE)
         saveModel(resnet, H, MODEL_WITH_CUSTOM_ALGORITHM_FILE,
                   MODEL_WITH_CUSTOM_ALGORITHM_TRAIN_HISTORY_FILE)
 
@@ -550,6 +551,30 @@ def main():
     print("=====================================================\nEvaluating Resnet with custom optimizer\n=====================================================")
     evaluateModel(device, resnet, testDataLoader, testingData,
                   H, "customOptimizerEvaluationPlot.png")
+    resnet.reInitializeFinalLayer()
+
+    # train NSGA-II on resent
+    if trainingFileExists(NSGAII_RESNET_MODEL_FILE):
+        resnet, H = loadModel(
+            NSGAII_RESNET_MODEL_FILE, NSGAII_RESNET_MODEL_HISTORY_FILE)
+        resnet, populations = loadModel(
+            NSGAII_3_EPOCHS_MODEL_FILE, "nsgaiiResnetPopFile")
+    else:
+        resnet, H = trainModel(device, resnet, opt, lossFn, trainingDataLoader,
+                               valDataLoader, 13, BATCH_SIZE)
+        saveModel(resnet, H, NSGAII_RESNET_MODEL_FILE,
+                  NSGAII_RESNET_MODEL_HISTORY_FILE)
+        saveModel(resnet, populations, NSGAII_RESNET_MODEL_FILE,
+                  "nsgaiiResnetPopFile")
+
+        # evaluate the model after training Resnet with Custom optimizer
+    print("=====================================================\nEvaluating Resnet with NSGAII\n=====================================================")
+    evaluateModel(device, resnet, testDataLoader, testingData,
+                  H, "NSGAIIResnetEvaluationPlot.png")
+    for index, pop in enumerate(populations):
+        print("population: ", index)
+        print("Final population hypervolume is %f" %
+              hypervolume(pop, [11.0, 11.0]))
 
 
 # run the main method
