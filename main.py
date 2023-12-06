@@ -335,26 +335,6 @@ def main():
     # set the device we will be using to train the model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # # make a resnet model
-    # resnet, opt, lossFn = modelResNet(device)
-
-    # # train the resnet model
-    # resnet, H_resnet = trainModel(device, resnet, opt, lossFn, trainingDataLoader, valDataLoader, epochs=13, batchSize=128)
-
-    # # save resnet model to disk
-    # saveModel(resnet, H_resnet, 'resnetModel', 'resnetModelHistory')
-
-    # # load resnet model from disk
-    # resnet, H_resnet = loadModel('resnetModel', 'resnetModelHistory')
-
-    # evaluate the resnet model before using the optimization algorithm
-    # print("=====================================================\nEvaluating ResNet model before using optimization algorithms\n=====================================================")
-    # evaluateModel(device, resnet, testDataLoader, testingData,
-    #               H_resnet, "finalResnet10EvaluationPlot.png")
-
-    # # reset the last layer of the resnet model
-    # resnet.reInitializeFinalLayer()
-
     # make a CNN model
     cnn, opt, lossFn = modelCNN(device, trainingData, IMAGE_CHANNELS)
 
@@ -537,7 +517,8 @@ def main():
                   H, "ResnetEvaluationPlot.png")
     resnet.reInitializeFinalLayer()
 
-    # # train Resnet with custom optimizer
+    # train Resnet with custom optimizer
+    print("custom optimizer on Resnet")
     if trainingFileExists(MODEL_WITH_CUSTOM_ALGORITHM_FILE):
         resnet, H = loadModel(
             MODEL_WITH_CUSTOM_ALGORITHM_FILE, MODEL_WITH_CUSTOM_ALGORITHM_TRAIN_HISTORY_FILE)
