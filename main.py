@@ -52,6 +52,8 @@ NSGAII_3_EPOCHS_MODEL_FILE = "nsgaii3EpochsModel"
 NSGAII_3_EPOCHS_MODEL_TRAIN_HISTORY_FILE = "nsgaii3EpochsModelHistory"
 NSGAII_RESNET_MODEL_FILE = "nsgaiiResnetModel"
 NSGAII_RESNET_MODEL_HISTORY_FILE = "nsgaiiResnetModelHistory"
+BCGA_RESNET_MODEL_FILE = "bcgaResnetModel"
+BCGA_RESNET_MODEL_HISTORY_FILE = "bcgaResnetModelHistory"
 # define training hyperparameters
 BATCH_SIZE = 128
 EPOCHS = 9
@@ -196,33 +198,6 @@ def trainModel(device, model, opt, lossFn, trainingDataLoader, valDataLoader, ep
     trainEnd = time.time()
     trainTimeTaken = (trainEnd - trainStart) / 60
     print("time to train: ", trainTimeTaken, " minutes\n")
-    return model, H
-
-
-# function to save a model and its history
-# inputs:
-# model - the model to save
-# H - the training history for the model
-# modelFileName - the file name to save the model into
-# historyFileName - the file name to save the training history into
-def saveModel(model, H, modelFileName, historyFileName):
-    print("saving model: ", modelFileName)
-    folder = "models/"
-    torch.save(model, folder+modelFileName)
-    torch.save(H, folder+historyFileName)
-
-
-# function to load a model and its history
-# inputs:
-# modelFileName - the file name to load the model from
-# historyFileName - the file name to load the training history from
-#
-# returns: the model, and the history
-def loadModel(modelFileName, historyFileName):
-    print("loading model: ", modelFileName)
-    folder = "models/"
-    model = torch.load(folder+modelFileName)
-    H = torch.load(folder+historyFileName)
     return model, H
 
 
@@ -556,13 +531,30 @@ def main():
                   H, "RCGAOnResnetEvaluationPlot.png")
     resnet.reInitializeFinalLayer()
 
+    # train bcga on resnet
+    print("BCGA on Resnet")
+    opt = GeneticOptimizer(device, cnn, lossFn=lossFn,
+                           weightLowerBound=-1, weightUpperBound=1, numOfBits=8, pop=20, elites=10)
+    if trainingFileExists(BCGA_RESNET_MODEL_FILE):
+        resnet, H = loadModel(
+            BCGA_RESNET_MODEL_FILE, BCGA_RESNET_MODEL_HISTORY_FILE)
+    else:
+        resnet, H = trainModel(device, resnet, opt, lossFn, trainingDataLoader,
+                               valDataLoader, EPOCHS, BATCH_SIZE)
+        saveModel(resnet, H, BCGA_RESNET_MODEL_FILE,
+                  BCGA_RESNET_MODEL_HISTORY_FILE)
+
+    # evaluate the model after using the optimization algorithm
+    print("=====================================================\nEvaluating model after using binary coded genetic algorithm\n=====================================================")
+    evaluateModel(device, resnet, testDataLoader, testingData,
+                  H, "BCGAOnResnetEvaluationPlot.png")
+    resnet.reInitializeFinalLayer()
+
     # train NSGA-II on resent
     print("NSGA-II on resnet")
     if trainingFileExists(NSGAII_RESNET_MODEL_FILE):
         resnet, H = loadModel(
             NSGAII_RESNET_MODEL_FILE, NSGAII_RESNET_MODEL_HISTORY_FILE)
-        resnet, populations = loadModel(
-            NSGAII_3_EPOCHS_MODEL_FILE, "nsgaiiResnetPopFile")
     else:
         opt = NSGAIIOptimizer(device, resnet, lossFn, weightLowerBound=-1,
                               weightUpperBound=1, pop=10, numOfBits=8)
@@ -573,14 +565,10 @@ def main():
         saveModel(resnet, populations, NSGAII_RESNET_MODEL_FILE,
                   "nsgaiiResnetPopFile")
 
-        # evaluate the model after training Resnet with Custom optimizer
+    # evaluate the model after training Resnet with Custom optimizer
     print("=====================================================\nEvaluating Resnet with NSGAII\n=====================================================")
     evaluateModel(device, resnet, testDataLoader, testingData,
                   H, "NSGAIIResnetEvaluationPlot.png")
-    for index, pop in enumerate(populations):
-        print("population: ", index)
-        print("Final population hypervolume is %f" %
-              hypervolume(pop, [11.0, 11.0]))
 
 
 # run the main method
